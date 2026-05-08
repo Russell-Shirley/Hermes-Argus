@@ -1,0 +1,23 @@
+org_type: retail
+payment_terms: net30
+description: Retail business with inventory management, customer loyalty, and vendor invoice processing
+
+modules:
+  - icm_base
+  - ar_collections
+  - voucher_processing
+  - inventory
+  - customer_outreach
+  - invoicing
+
+profiles:
+  - ar_watcher
+  - voucher_scanner
+  - inventory_manager
+  - outreach_agent
+
+review_rules:
+  collection_letter_auto_approve: false
+  voucher_auto_post_threshold: 0.75
+  outreach_auto_approve: false
+  low_stock_alert_auto: true

@@ -1,0 +1,19 @@
+org_type: dental_practice
+payment_terms: net30
+description: Dental practice with patient billing, insurance claims, and recall outreach
+
+modules:
+  - icm_base
+  - ar_collections
+  - customer_outreach
+  - invoicing
+
+profiles:
+  - ar_watcher
+  - outreach_agent
+
+review_rules:
+  collection_letter_auto_approve: false
+  voucher_auto_post_threshold: 0.80
+  outreach_auto_approve: false
+  hippa_compliant: true

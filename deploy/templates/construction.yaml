@@ -1,0 +1,21 @@
+org_type: construction
+payment_terms: net60
+description: Construction company with progress billing, material tracking, and subcontractor management
+
+modules:
+  - icm_base
+  - ar_collections
+  - voucher_processing
+  - inventory
+  - invoicing
+
+profiles:
+  - ar_watcher
+  - voucher_scanner
+  - inventory_manager
+
+review_rules:
+  collection_letter_auto_approve: false
+  voucher_auto_post_threshold: 0.85
+  outreach_auto_approve: false
+  low_stock_alert_auto: true

@@ -255,6 +255,15 @@ pytest tests/ -v
 - [ ] Cognee adapter tests pass
 - [ ] All 3 collection letter templates parse
 
+## Windows-Specific Notes
+
+- Install via `pip install hermes-agent` (not curl|bash)
+- `hermes setup --non-interactive` may crash with UnicodeEncodeError — use `hermes config set` instead
+- `hermes gateway stop` fails (Unix signal) — use `Stop-Process -Id <pid>` or Task Manager
+- `hermes skills install --dir` doesn't exist in v0.10 — copy ICM modules to skill directories manually
+- Use `curl.exe` not `curl` (PowerShell alias conflict)
+- Cognee `/health` doesn't exist — use `/query?q=test` or `/docs`
+
 ## If Something Fails
 
 | Symptom | Likely fix |
@@ -263,4 +272,7 @@ pytest tests/ -v
 | PostgreSQL MCP rejects connection | `POSTGRES_CONNECTION_STRING` not in env. Add to `~/.hermes/.env` |
 | AR watcher can't find schema | Schema not deployed. Run `schema/business.sql` |
 | Google Workspace tests fail on Windows | venv in wrong Python. Use `uv run` (handles this) |
-| Ollama slow on first call | Expected — cold start. Run `ollama run gemma4:9b "warmup"` once |
+| Ollama slow on first call | Expected — cold start. Run `ollama run gemma4:e4b "warmup"` once |
+| `ar_invoices` fails: relation "customers" does not exist | Schema ordering issue. Run `customers` block first in `business.sql` |
+| Cognee client tests hang | DeepSeek API call timing out. Verify HTTP round-trip via `/learn` + `/query` instead |
+| `hermes config set env.KEY` errors | Env vars go in `~/.hermes/.env` file, not via `config set` |

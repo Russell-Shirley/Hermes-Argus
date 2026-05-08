@@ -2,6 +2,26 @@
 -- Deployed per-org on their PostgreSQL/Supabase instance
 
 -- ============================================================
+-- CUSTOMERS (must come first — referenced by ar_invoices, outreach)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS customers (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  contact_name TEXT,
+  contact_email TEXT,
+  contact_phone TEXT,
+  billing_address TEXT,
+  payment_terms TEXT DEFAULT 'net30',
+  credit_limit NUMERIC(12,2),
+  status TEXT DEFAULT 'active',
+    -- active, inactive, on_hold
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
 -- AR LEDGER
 -- ============================================================
 
@@ -62,26 +82,6 @@ CREATE TABLE IF NOT EXISTS collection_activity (
 );
 
 CREATE INDEX idx_collection_invoice ON collection_activity(invoice_id);
-
--- ============================================================
--- CUSTOMERS
--- ============================================================
-
-CREATE TABLE IF NOT EXISTS customers (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  contact_name TEXT,
-  contact_email TEXT,
-  contact_phone TEXT,
-  billing_address TEXT,
-  payment_terms TEXT DEFAULT 'net30',
-  credit_limit NUMERIC(12,2),
-  status TEXT DEFAULT 'active',
-    -- active, inactive, on_hold
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  updated_at TIMESTAMPTZ DEFAULT NOW()
-);
 
 -- ============================================================
 -- VOUCHER QUEUE
