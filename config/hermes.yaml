@@ -1,0 +1,65 @@
+# Hermes-Argus Base Configuration
+# Merge with ~/.hermes/config.yaml per deployment
+
+models:
+  providers:
+    deepseek:
+      api_key: ${DEEPSEEK_API_KEY}
+      base_url: https://api.deepseek.com/v1
+    ollama:
+      base_url: http://localhost:11434/v1
+    openrouter:
+      api_key: ${OPENROUTER_API_KEY}
+      base_url: https://openrouter.ai/api/v1
+
+  default: deepseek/deepseek-chat
+  reasoning: ollama/gemma4:9b
+
+mcp_servers:
+  cognee:
+    transport: http
+    url: http://localhost:8000
+    tools:
+      - cognee__memorize
+      - cognee__query
+
+  postgres:
+    command: npx
+    args: ["-y", "@modelcontextprotocol/server-postgres", "${POSTGRES_CONNECTION_STRING}"]
+    tools:
+      include: ["query", "execute"]
+
+  google-workspace:
+    command: uv
+    args: ["run", "-m", "google_tools.server"]
+    cwd: ./google-tools
+    tools:
+      include:
+        - google-workspace__gmail_send
+        - google-workspace__gmail_read
+        - google-workspace__calendar_create
+        - google-workspace__calendar_list
+        - google-workspace__tasks_create
+
+security:
+  tirith_enabled: true
+  website_blocklist:
+    enabled: true
+    domains: []
+
+approvals:
+  mode: smart
+  timeout: 60
+
+terminal:
+  backend: local
+  env_passthrough: []
+
+messaging:
+  platforms:
+    discord:
+      token: ${DISCORD_BOT_TOKEN}
+      allowed_users: ${DISCORD_ALLOWED_USERS}
+    slack:
+      token: ${SLACK_BOT_TOKEN}
+      signing_secret: ${SLACK_SIGNING_SECRET}

@@ -1,0 +1,23 @@
+# Customer Outreach Agent
+# Manages contact cadence, generates personalized outreach, logs interactions
+
+name: outreach_agent
+description: Maintains customer contact schedule and generates outreach communications
+
+personality: outreach.md
+skills:
+  - icm_base
+  - customer_outreach
+
+mcp_servers:
+  - cognee
+  - postgres
+  - google-workspace
+
+cron:
+  - outreach_daily
+
+tools:
+  deny:
+    - browser_navigate
+    - web_search

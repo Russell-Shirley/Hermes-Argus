@@ -1,0 +1,23 @@
+# AR Collections Agent
+# Watches accounts receivable, sends collection letters, logs activity
+
+name: ar_watcher
+description: Handles AR aging monitoring and collections communication
+
+personality: ar_watcher.md
+skills:
+  - icm_base
+  - ar_collections
+
+mcp_servers:
+  - cognee
+  - postgres
+
+cron:
+  - ar_daily_check
+
+tools:
+  deny:
+    - browser_navigate
+    - web_search
+    - execute_code

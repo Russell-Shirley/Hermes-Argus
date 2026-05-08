@@ -1,0 +1,13 @@
+.env
+google-tools/token.json
+google-tools/client_secret*.json
+google-tools/.venv/
+cognee-server/venv/
+cognee-server/__pycache__/
+*.pyc
+__pycache__/
+.cognee/
+.hermes/
+logs/
+data/
+*.log

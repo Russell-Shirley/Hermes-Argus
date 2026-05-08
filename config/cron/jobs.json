@@ -1,0 +1,63 @@
+[
+  {
+    "id": "ar_daily_check",
+    "schedule": "0 8 * * 1-5",
+    "profile": "ar_watcher",
+    "prompt": [
+      "You are the AR collections agent. Execute the following checks against the PostgreSQL database:",
+      "",
+      "1. SELECT all invoices from ar_invoices WHERE status != 'paid' AND days_overdue >= 90.",
+      "2. For each overdue invoice, check collection_activity for the last action taken.",
+      "3. Generate an appropriate collection letter based on the aging bracket:",
+      "   - 90-119 days: friendly reminder (ar_collection_letter_friendly)",
+      "   - 120-179 days: firm notice (ar_collection_letter_firm)",
+      "   - 180+ days: final notice (ar_collection_letter_final)",
+      "4. Insert each action into collection_activity with status 'letter_sent'.",
+      "5. Deliver the letters to Slack and summarize what was sent.",
+      "",
+      "Do NOT modify invoice data. Do NOT send letters for invoices already in 'disputed' status.",
+      "Use core__memorize_graph to store notable patterns (e.g., 'Customer X is chronically 120+ days late')."
+    ],
+    "deliver_to": "slack",
+    "require_approval": true
+  },
+  {
+    "id": "voucher_watchdog",
+    "schedule": "*/15 * * * *",
+    "profile": "voucher_scanner",
+    "prompt": [
+      "You are the voucher scanner agent. Process new voucher files:",
+      "",
+      "1. SELECT all entries from voucher_queue WHERE status = 'pending'.",
+      "2. For each pending file:",
+      "   - Extract vendor name, amount, date, invoice number",
+      "   - Determine confidence level (high/medium/low)",
+      "   - If confidence >= 0.8: insert accounting entry, update status to 'posted'",
+      "   - If confidence < 0.8: update status to 'needs_review', flag for human",
+      "3. Report: vouchers processed, posted, flagged for review.",
+      "",
+      "Do NOT guess. If you cannot read the vendor name or amount, flag it."
+    ],
+    "deliver_to": "slack",
+    "require_approval": false
+  },
+  {
+    "id": "outreach_daily",
+    "schedule": "0 9 * * 1-5",
+    "profile": "outreach_agent",
+    "prompt": [
+      "You are the customer outreach agent. Check today's contact schedule:",
+      "",
+      "1. SELECT all entries from outreach_schedule WHERE next_contact <= CURRENT_DATE AND status = 'pending'.",
+      "2. For each customer due for contact:",
+      "   - Check recent activity (last orders, open invoices, support tickets)",
+      "   - Generate a personalized outreach message",
+      "   - Update last_contact = NOW(), next_contact = NOW() + cadence_days",
+      "3. Deliver outreach messages to Slack for review.",
+      "",
+      "Tone should be helpful, not salesy. Reference actual recent activity."
+    ],
+    "deliver_to": "slack",
+    "require_approval": true
+  }
+]

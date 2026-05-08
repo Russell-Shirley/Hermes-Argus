@@ -1,0 +1,23 @@
+# Voucher Scanner Agent
+# Watches for new voucher files, extracts data, creates accounting entries
+
+name: voucher_scanner
+description: Monitors voucher queue, runs OCR extraction, posts accounting entries
+
+personality: voucher_scanner.md
+skills:
+  - icm_base
+  - voucher_processing
+
+mcp_servers:
+  - cognee
+  - postgres
+  - google-workspace
+
+cron:
+  - voucher_watchdog
+
+tools:
+  deny:
+    - browser_navigate
+    - web_search
