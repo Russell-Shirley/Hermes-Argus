@@ -11,6 +11,17 @@ appliances for SMBs. Always prioritize:
 - Maintainability
 - Performance
 
+## Git Workflow
+
+**Always use feature branches. Never commit directly to `master`.**
+
+1. Before making any code changes, create a branch: `git checkout -b feat/<short-description>`
+2. Make changes, commit with descriptive messages
+3. Push and open a PR: `gh pr create`
+4. Merge only after the PR is created — do not push directly to master
+
+Branch naming: `feat/` for new features, `fix/` for bugs, `chore/` for config/docs/infra.
+
 ## Core Behavior Rules
 
 **Think Before Acting**
