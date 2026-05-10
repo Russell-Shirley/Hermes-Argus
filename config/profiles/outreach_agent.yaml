@@ -1,23 +1,35 @@
-# Customer Outreach Agent
-# Manages contact cadence, generates personalized outreach, logs interactions
+# Customer Outreach Agent — Hermes v0.10 Profile
+#
+# This profile is deployed as a standalone Hermes profile directory at:
+#   ~/.hermes/profiles/outreach_agent/
+#
+# Usage:
+#   hermes gateway run --profile outreach_agent
+#   hermes chat --profile outreach_agent
+#
+# Tool scoping:
+#   - MCP servers: cognee (graph memory), postgres (customer data), google-workspace (email delivery)
+#   - platform_toolsets disables: web, browser, vision, image_gen, moa, tts, delegation, rl, homeassistant
+#   - platform_toolsets enables: terminal, file, code_execution, skills, todo, memory, session_search, clarify, cronjob, messaging
 
 name: outreach_agent
 description: Maintains customer contact schedule and generates outreach communications
-
-personality: outreach.md
-skills:
-  - icm_base
-  - customer_outreach
 
 mcp_servers:
   - cognee
   - postgres
   - google-workspace
 
+personality:
+  default: bridge-and-bolt
+  profiles:
+    outreach:
+      extends: bridge-and-bolt
+      template: outreach
+
+approvals:
+  mode: manual
+  timeout: 120
+
 cron:
   - outreach_daily
-
-tools:
-  deny:
-    - browser_navigate
-    - web_search

@@ -164,14 +164,21 @@ def fallback_store(graph: dict):
 
 
 def query_graph_db(q: str) -> list:
-    """Fallback SQL search on nodes/edges."""
+    """Fallback SQL search on nodes/edges. Tokenizes query for multi-word matching."""
     import psycopg2
     conn = psycopg2.connect(host="ob1", port=5432, dbname="openbrain", user="postgres", password="argus")
     cur = conn.cursor()
     try:
+        tokens = [t for t in q.split() if len(t) > 2]
+        if not tokens:
+            tokens = [q]
+        clauses = " OR ".join(["n.name ILIKE %s OR n.description ILIKE %s"] * len(tokens))
+        params = []
+        for t in tokens:
+            params.extend([f"%{t}%", f"%{t}%"])
         cur.execute(
-            "SELECT n.name, n.description, n.type FROM nodes n WHERE n.name ILIKE %s OR n.description ILIKE %s LIMIT 20",
-            (f"%{q}%", f"%{q}%"),
+            f"SELECT n.name, n.description, n.type FROM nodes n WHERE {clauses} LIMIT 20",
+            params,
         )
         nodes = [{"name": r[0], "description": r[1], "type": r[2]} for r in cur.fetchall()]
         results = []

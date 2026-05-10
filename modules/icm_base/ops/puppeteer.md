@@ -1,3 +1,10 @@
+---
+name: puppeteer_browser
+version: 1.0.0
+description: How to use the Puppeteer browser MCP server for web navigation, screenshots, and data extraction
+requires: [icm_base]
+---
+
 # Puppeteer Web Browsing Skill
 
 When using Puppeteer to browse the web, the `puppeteer_navigate` tool only moves the browser to the page—it does NOT return the text on the page! You are driving blind.

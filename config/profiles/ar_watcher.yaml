@@ -1,23 +1,39 @@
-# AR Collections Agent
-# Watches accounts receivable, sends collection letters, logs activity
+# AR Collections Agent — Hermes v0.10 Profile
+#
+# This profile is deployed as a standalone Hermes profile directory at:
+#   ~/.hermes/profiles/ar_watcher/
+#
+# Hermes v0.10 profile architecture:
+#   Each profile is an independent HERMES_HOME directory with its own
+#   config.yaml, SOUL.md, .env, sessions, logs, and cron.
+#
+# Usage:
+#   hermes gateway run --profile ar_watcher
+#   hermes chat --profile ar_watcher
+#
+# Tool scoping:
+#   - MCP servers: cognee (graph memory), postgres (AR data)
+#   - No google-workspace (no email access)
+#   - platform_toolsets disables: web, browser, code_execution, vision, image_gen, moa, tts, delegation, rl, homeassistant
+#   - platform_toolsets enables: terminal, file, skills, todo, memory, session_search, clarify, cronjob, messaging
 
 name: ar_watcher
 description: Handles AR aging monitoring and collections communication
-
-personality: ar_watcher.md
-skills:
-  - icm_base
-  - ar_collections
 
 mcp_servers:
   - cognee
   - postgres
 
+personality:
+  default: bridge-and-bolt
+  profiles:
+    ar_watcher:
+      extends: bridge-and-bolt
+      template: ar_watcher
+
+approvals:
+  mode: manual
+  timeout: 120
+
 cron:
   - ar_daily_check
-
-tools:
-  deny:
-    - browser_navigate
-    - web_search
-    - execute_code

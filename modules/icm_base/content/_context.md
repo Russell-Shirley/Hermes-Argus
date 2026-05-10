@@ -1,3 +1,10 @@
+---
+name: content_context
+version: 1.0.0
+description: Domain context for social media, blog posts, marketing copy, and SEO research
+requires: [icm_base]
+---
+
 # Content Domain
 
 This domain handles social media scheduling, blog post drafting, marketing copy, and SEO research.

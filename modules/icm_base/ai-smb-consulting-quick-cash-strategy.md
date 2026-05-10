@@ -1,3 +1,10 @@
+---
+name: ai_smb_consulting_quick_cash_strategy
+version: 1.0.0
+description: Research on AI SMB consulting services ranked by speed-to-cash and margin
+requires: [icm_base]
+---
+
 # AI SMB Consulting — Quick Cash Strategy
 
 ## Overview

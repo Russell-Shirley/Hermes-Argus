@@ -1,3 +1,10 @@
+---
+name: gmail_api_integration
+version: 1.0.0
+description: How to interact with Gmail — send, read, search emails via Google Workspace MCP tools
+requires: [icm_base]
+---
+
 # Gmail API Integration (Read-Only)
 
 ## Overview

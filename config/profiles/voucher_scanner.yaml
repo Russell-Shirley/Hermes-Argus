@@ -1,23 +1,35 @@
-# Voucher Scanner Agent
-# Watches for new voucher files, extracts data, creates accounting entries
+# Voucher Scanner Agent — Hermes v0.10 Profile
+#
+# This profile is deployed as a standalone Hermes profile directory at:
+#   ~/.hermes/profiles/voucher_scanner/
+#
+# Usage:
+#   hermes gateway run --profile voucher_scanner
+#   hermes chat --profile voucher_scanner
+#
+# Tool scoping:
+#   - MCP servers: cognee (graph memory), postgres (voucher data), google-workspace (review notifications)
+#   - platform_toolsets disables: web, browser, vision, image_gen, moa, tts, delegation, rl, homeassistant
+#   - platform_toolsets enables: terminal, file, code_execution, skills, todo, memory, session_search, clarify, cronjob, messaging
 
 name: voucher_scanner
 description: Monitors voucher queue, runs OCR extraction, posts accounting entries
-
-personality: voucher_scanner.md
-skills:
-  - icm_base
-  - voucher_processing
 
 mcp_servers:
   - cognee
   - postgres
   - google-workspace
 
+personality:
+  default: bridge-and-bolt
+  profiles:
+    voucher_scanner:
+      extends: bridge-and-bolt
+      template: voucher_scanner
+
+approvals:
+  mode: manual
+  timeout: 120
+
 cron:
   - voucher_watchdog
-
-tools:
-  deny:
-    - browser_navigate
-    - web_search

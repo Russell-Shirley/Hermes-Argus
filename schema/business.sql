@@ -160,3 +160,47 @@ CREATE TABLE IF NOT EXISTS outreach_log (
 );
 
 CREATE INDEX idx_outreach_log_customer ON outreach_log(customer_name);
+
+-- ============================================================
+-- EXTENSIBLE MODULES (deploy incrementally per-org)
+-- ============================================================
+
+-- Inventory module
+CREATE TABLE IF NOT EXISTS inventory_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sku TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  quantity_on_hand INTEGER DEFAULT 0,
+  reorder_point INTEGER,
+  reorder_quantity INTEGER,
+  vendor_id UUID REFERENCES customers(id),
+  vendor_name TEXT,
+  unit_cost NUMERIC(12,2),
+  last_ordered DATE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Invoicing module
+CREATE TABLE IF NOT EXISTS recurring_invoices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID REFERENCES customers(id),
+  customer_name TEXT NOT NULL,
+  template_name TEXT,
+  amount NUMERIC(12,2),
+  frequency TEXT,
+  next_run DATE,
+  status TEXT DEFAULT 'active',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Payroll module
+CREATE TABLE IF NOT EXISTS time_entries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_name TEXT NOT NULL,
+  entry_date DATE NOT NULL,
+  hours NUMERIC(5,2),
+  rate NUMERIC(12,2),
+  status TEXT DEFAULT 'pending',
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);

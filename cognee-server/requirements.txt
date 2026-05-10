@@ -3,3 +3,4 @@ uvicorn
 cognee[postgres-binary] @ git+https://github.com/Russell-Shirley/cognee.git@feat/deepseek-provider
 pydantic
 psycopg2-binary
+transformers
