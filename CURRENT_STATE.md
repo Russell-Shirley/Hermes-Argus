@@ -130,6 +130,7 @@ Start-Process -FilePath $hermesExe -ArgumentList "gateway","run" -WindowStyle Hi
 | Google Workspace auth | No credentials.json/token.json — will run in degraded mode |
 | Ollama cold start | gemma4:e4b (~3GB) times out on first load — run a warmup query before relying on it |
 | Cognee primary pipeline | Fails due to missing `transformers` — fallback DeepSeek works |
+| ~~Gemma model ID drift (9b vs e4b)~~ | **Resolved in PR #2** — canonical local model is `gemma4:e4b`. Prior agent sessions repeatedly regressed config/runbooks to `gemma4:9b` (a model that was never loaded). Before any Gemma-related config change, `grep -r "gemma" .` and confirm `e4b`. Runtime switch: `/model ollama/gemma4:e4b`. |
 | Cron runtime + Slack delivery | Verified — `voucher_watchdog` fires every 15 min, reports delivered to `#biz-bridgeandbolt` |
 | ~~PostgreSQL MCP write access~~ | **Resolved** — `cognee-server/postgres_mcp.py` now exposes `query` + `execute` |
 | ~~Discord rate limiting~~ | **Resolved** — Discord fully disabled; Slack is the only messaging platform |
