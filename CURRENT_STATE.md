@@ -80,10 +80,11 @@ The `config/hermes.yaml` repo template and `~/.hermes/config.yaml` have diverged
 
 **Gateway is managed by the watchdog (Task Scheduler) — do not start manually.**
 
-The watchdog task `HermesGatewayWatchdog` auto-starts at logon and restarts the gateway on any crash.
+The watchdog task `HermesGatewayWatchdog` auto-starts at logon and on system wake, and restarts the gateway on any crash.
 - Script: `deploy/watchdog.ps1`
-- Register/re-register: `deploy/register-watchdog.ps1`
+- Register/re-register: `deploy/register-watchdog.ps1` (re-run after OS reinstall or if task disappears)
 - Watchdog log: `~/.hermes/logs/watchdog.log`
+- Triggers: **AtLogon** + **OnWake** (Power-Troubleshooter Event ID 1) — covers sleep/hibernate kills
 
 ```powershell
 # Check watchdog status
