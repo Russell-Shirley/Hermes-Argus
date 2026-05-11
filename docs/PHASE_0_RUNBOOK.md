@@ -43,12 +43,12 @@ Send a message to your Discord bot. Confirm:
 ```bash
 # Make sure Ollama is running
 ollama list
-ollama run gemma4:9b "Hello, this is a test."
+ollama run gemma4:e4b "Hello, this is a test."
 ```
 
 Then in Discord, switch to local model:
 ```
-/model ollama/gemma4:9b
+/model ollama/gemma4:e4b
 "Test message"
 ```
 

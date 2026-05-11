@@ -222,7 +222,7 @@ models:
     ollama:
       base_url: http://localhost:11434/v1
   default: deepseek/deepseek-chat
-  reasoning: ollama/gemma4:9b
+  reasoning: ollama/gemma4:e4b
 
 personality:
   default: bridge-and-bolt
@@ -321,4 +321,4 @@ hermes gateway start --profile voucher_scanner --port 18791
 | `<tool_output>` tags | Hermes wraps or doesn't wrap | Check Hermes behavior; may need config |
 | `requestApproval` callback | Hermes `approvals.mode: manual/smart` | Built-in, already better |
 | `detectDanger()` | Hermes `tools/approval.py` patterns | Pattern-match, not annotation-based |
-| `useLocal = true` (Ollama) | `ollama/gemma4:9b` as reasoning model | Configured in config.yaml |
+| `useLocal = true` (Ollama) | `ollama/gemma4:e4b` as reasoning model | Configured in config.yaml |
