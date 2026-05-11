@@ -1,6 +1,6 @@
 # Registers the Hermes watchdog as a Windows Task Scheduler task.
 # Run once as the logged-in user (no elevation required).
-# Task auto-starts at logon and restarts on failure.
+# Triggers: AtLogon + OnWake (covers sleep/hibernate kills of the watchdog process).
 
 $TaskName    = "HermesGatewayWatchdog"
 $ScriptPath  = "$env:USERPROFILE\Documents\GitHub\Hermes-Argus\deploy\watchdog.ps1"
@@ -9,14 +9,21 @@ $PwshExe     = "powershell.exe"
 # Remove stale registration if it exists
 Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false -ErrorAction SilentlyContinue
 
-$action  = New-ScheduledTaskAction `
-               -Execute $PwshExe `
-               -Argument "-NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$ScriptPath`""
+$action = New-ScheduledTaskAction `
+              -Execute $PwshExe `
+              -Argument "-NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$ScriptPath`""
 
-# Trigger: at logon of current user
-$trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+# Trigger 1: at logon of current user
+$logonTrigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
 
-# Settings: restart on failure, don't stop if running on battery, run indefinitely
+# Trigger 2: on system wake from sleep/hibernate (Power-Troubleshooter Event ID 1)
+$wakeClass   = Get-CimClass -Namespace ROOT\Microsoft\Windows\TaskScheduler -ClassName MSFT_TaskEventTrigger
+$wakeTrigger = New-CimInstance -CimClass $wakeClass -ClientOnly
+$wakeTrigger.Enabled = $true
+$wakeTrigger.Subscription = "<QueryList><Query Id='0' Path='System'><Select Path='System'>*[System[Provider[@Name='Microsoft-Windows-Power-Troubleshooter'] and EventID=1]]</Select></Query></QueryList>"
+$wakeTrigger.ExecutionTimeLimit = "PT0S"
+
+# Settings: restart on failure, run indefinitely
 $settings = New-ScheduledTaskSettingsSet `
                 -ExecutionTimeLimit (New-TimeSpan -Days 365) `
                 -RestartCount 10 `
@@ -32,11 +39,10 @@ $principal = New-ScheduledTaskPrincipal `
 Register-ScheduledTask `
     -TaskName  $TaskName `
     -Action    $action `
-    -Trigger   $trigger `
+    -Trigger   @($logonTrigger, $wakeTrigger) `
     -Settings  $settings `
     -Principal $principal `
-    -Description "Hermes gateway watchdog - auto-restarts on crash (MCP TimeoutError mitigation)" | Out-Null
+    -Description "Hermes gateway watchdog - restarts on crash, logon, and system wake" | Out-Null
 
-Write-Host "Registered task '$TaskName'"
-Write-Host "It will start at next logon. To start immediately:"
-Write-Host "  Start-ScheduledTask -TaskName '$TaskName'"
+Write-Host "Registered task '$TaskName' (triggers: AtLogon + OnWake)"
+Write-Host "To start immediately: Start-ScheduledTask -TaskName '$TaskName'"
