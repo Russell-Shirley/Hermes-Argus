@@ -128,7 +128,7 @@ Start-Process -FilePath $hermesExe -ArgumentList "gateway","run" -WindowStyle Hi
 | Hermes doesn't forward `cwd` to MCP stdio | Use absolute paths in `args` |
 | `hermes gateway stop` | Fails on Windows — use `Stop-Process` |
 | Google Workspace auth | No credentials.json/token.json — will run in degraded mode |
-| Ollama cold start | 9.6GB gemma4:9b times out on first load |
+| Ollama cold start | gemma4:e4b (~3GB) times out on first load — run a warmup query before relying on it |
 | Cognee primary pipeline | Fails due to missing `transformers` — fallback DeepSeek works |
 | Cron runtime + Slack delivery | Verified — `voucher_watchdog` fires every 15 min, reports delivered to `#biz-bridgeandbolt` |
 | ~~PostgreSQL MCP write access~~ | **Resolved** — `cognee-server/postgres_mcp.py` now exposes `query` + `execute` |
