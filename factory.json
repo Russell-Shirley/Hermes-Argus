@@ -1,0 +1,12 @@
+{
+  "$comment": "Factory bindings for Hermes-Argus. See ai-factory/knowledge/decisions/0002-persona-contract-architecture.md",
+  "factory_repo_path": "../ai-factory",
+  "factory_commit_pin": null,
+  "factory_commit_pin_comment": "Set to a specific SHA when first UNIVERSAL artifact is consumed; null = LOCAL-only mode",
+  "personas_universal": [],
+  "contracts_universal": [],
+  "personas_local": [],
+  "contracts_local_root": "contracts/",
+  "adapter": "claude-code",
+  "adapter_config_path": ".claude/settings.json"
+}
