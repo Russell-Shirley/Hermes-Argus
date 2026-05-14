@@ -96,7 +96,7 @@ if (Test-Path $PasswordFile) {
     Write-Host ""
     Write-Host "  IMPORTANT: Restic password written to:" -ForegroundColor Yellow
     Write-Host "    $PasswordFile" -ForegroundColor Yellow
-    Write-Host "  Back this file up to 1Password -- without it you cannot restore." -ForegroundColor Yellow
+    Write-Host "  Back this file up to Bitwarden -- without it you cannot restore." -ForegroundColor Yellow
     Write-Host ""
 }
 
@@ -105,14 +105,20 @@ Write-Step "Restic repository"
 $env:RESTIC_REPOSITORY    = $ResticRepo
 $env:RESTIC_PASSWORD_FILE = $PasswordFile
 
-$SnapCheck = & $ResticExe snapshots 2>&1
-if ($LASTEXITCODE -eq 0) {
+# Temporarily allow non-zero exit so restic's "repo not found" stderr doesn't terminate the script
+$savedEAP = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+$null = & $ResticExe snapshots 2>&1
+$RepoExists = ($LASTEXITCODE -eq 0)
+$ErrorActionPreference = $savedEAP
+
+if ($RepoExists) {
     Write-Host "  Repository already initialized"
 } else {
     Write-Host "  Initializing at $ResticRepo..."
     & $ResticExe init
     if ($LASTEXITCODE -ne 0) {
-        throw "restic init failed (exit $LASTEXITCODE)"
+        throw "restic init failed (exit $($LASTEXITCODE))"
     }
     Write-Host "  Repository initialized"
 }
@@ -199,4 +205,4 @@ Write-Host "Run a test now:" -ForegroundColor Cyan
 Write-Host "  Start-ScheduledTask '$TaskName'"
 Write-Host "  Get-Content D:\hermes-backups\last-status.json"
 Write-Host ""
-Write-Host "ACTION REQUIRED: back up $PasswordFile to 1Password." -ForegroundColor Yellow
+Write-Host "ACTION REQUIRED: back up $PasswordFile to Bitwarden." -ForegroundColor Yellow
