@@ -123,6 +123,49 @@ if ($RepoExists) {
     Write-Host "  Repository initialized"
 }
 
+# --- Backblaze B2 credentials and repo init ----------------------------------
+Write-Step "Backblaze B2 remote repository"
+$ResticB2Repo = "s3:https://s3.us-east-005.backblazeb2.com/hermes-Argus-Hindsight-Openbrain"
+$B2CredFile   = Join-Path $PSScriptRoot "..\.env"
+
+if (-not (Test-Path $B2CredFile)) {
+    Write-Host ""
+    Write-Host "  ACTION REQUIRED: create $B2CredFile with your B2 application key:" -ForegroundColor Yellow
+    Write-Host "    AWS_ACCESS_KEY_ID=<keyID>" -ForegroundColor Yellow
+    Write-Host "    AWS_SECRET_ACCESS_KEY=<applicationKey>" -ForegroundColor Yellow
+    Write-Host "  Then re-run this script to initialize the B2 repo." -ForegroundColor Yellow
+    Write-Host ""
+} else {
+    Get-Content $B2CredFile | ForEach-Object {
+        if ($_ -match '^([^#=\s]+)\s*=\s*(.+)$') {
+            [System.Environment]::SetEnvironmentVariable($Matches[1], $Matches[2].Trim(), 'Process')
+        }
+    }
+
+    $env:RESTIC_REPOSITORY    = $ResticB2Repo
+    $env:RESTIC_PASSWORD_FILE = $PasswordFile
+
+    $savedEAP = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    $null = & $ResticExe snapshots 2>&1
+    $B2RepoExists = ($LASTEXITCODE -eq 0)
+    $ErrorActionPreference = $savedEAP
+
+    if ($B2RepoExists) {
+        Write-Host "  B2 repository already initialized"
+    } else {
+        Write-Host "  Initializing B2 repository at $ResticB2Repo..."
+        & $ResticExe init
+        if ($LASTEXITCODE -ne 0) { throw "B2 restic init failed (exit $($LASTEXITCODE))" }
+        Write-Host "  B2 repository initialized"
+    }
+
+    $env:RESTIC_REPOSITORY    = $ResticRepo
+    $env:RESTIC_PASSWORD_FILE = $PasswordFile
+    [System.Environment]::SetEnvironmentVariable('AWS_ACCESS_KEY_ID', $null, 'Process')
+    [System.Environment]::SetEnvironmentVariable('AWS_SECRET_ACCESS_KEY', $null, 'Process')
+}
+
 # --- Deploy backup_jobs schema -----------------------------------------------
 Write-Step "Deploying backup_jobs table to argus-openbrain"
 $ContainerRunning = docker inspect -f "{{.State.Running}}" argus-openbrain 2>&1
