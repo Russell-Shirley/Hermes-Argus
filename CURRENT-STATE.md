@@ -5,7 +5,7 @@
 
 ## Last Updated
 - **Date:** 2026-05-14
-- **By:** Argus (v5 consolidation — merged 3 divergent CURRENT_STATE files into one)
+- **By:** Claude Code (GH #13 fix — Hindsight Task Scheduler + backup verified)
 
 ## Identity
 - **Agent name:** Argus Panoptes ("Argus")
@@ -22,6 +22,8 @@
 | Watchdog (Task Scheduler) | **Running** — auto-restarts gateway at logon |
 | Postgres (argus-openbrain) | Healthy — port 5432 |
 | Cognee Server | Running — port 8000 |
+| Hindsight Postgres (pg0) | Healthy — port 15432 (PID 39292) |
+| Hindsight Task Scheduler | **Running** — `HermesHindsightStart` auto-starts on logon + wake |
 
 ## Architecture
 
@@ -43,7 +45,8 @@ Docker Stack (docker-compose.yml)
         └── Active LLM: deepseek-chat (via .env.llm.active toggle)
 
 Windows Side
-  ├── Task Scheduler: HermesGatewayWatchdog (gateway restart)
+  ├── Task Scheduler: HermesGatewayWatchdog (gateway restart — AtLogOn + OnWake)
+  ├── Task Scheduler: HermesHindsightStart (Hindsight pg0 + MCP server — AtLogOn + OnWake)
   └── Task Scheduler: HermesArgusBackup (nightly backup to D:)
 ```
 
@@ -56,13 +59,23 @@ The D: drive backup is the canonical, running backup system. My DR skill (`ops/a
 | **Schedule** | Daily at 02:00 (Windows Task Scheduler — `HermesArgusBackup`) |
 | **Script** | `scripts/backup-to-d.ps1` — pg_dumpall + docker save + Restic |
 | **Register** | `scripts/register-backup-task.ps1` (run once as Admin) |
-| **Destination** | `D:\hermes-backups\` |
+| **Destination** | `D:\hermes-backups\` (USB external drive — separate physical device from C:) |
 | **Contents** | Postgres dumps (7-day retention), Docker images (3 daily `.tar` exports), Restic repo (7 daily / 4 weekly / 3 monthly snapshots) |
-| **Status** | ✅ Running — last run 2026-05-14 09:08 |
+| **Status** | ✅ Running — last run 2026-05-14 14:47 (all 6 steps success, incl. hindsight_postgres 10.6 MB) |
 | **Observability** | `backup_jobs` table in Postgres; `backup_health_check` cron at 08:00 daily posts Slack alert on failure |
 | **DR skill** | `ops/argus-disaster-recovery` — comprehensive restore procedures (at `~/.hermes/skills/ops/argus-disaster-recovery/SKILL.md`) |
 
-**Critical:** `D:\hermes-backups\.restic-password` — back this up to 1Password. Without it, Restic snapshots are unrecoverable.
+**Backup — Backblaze B2 (Remote, Step 4b)**
+
+| Field | Value |
+|-------|-------|
+| Bucket | `hermes-Argus-Hindsight-Openbrain` |
+| Endpoint | `s3.us-east-005.backblazeb2.com` |
+| Credentials | `.env` at repo root on C: (`AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`) — also in Bitwarden |
+| Encryption | Restic AES-256 (same key as local repo — `D:\hermes-backups\.restic-password`) |
+| Init | `scripts/register-backup-task.ps1` handles first-time repo init |
+
+**Critical:** `D:\hermes-backups\.restic-password` — in Bitwarden. Without it, neither local nor B2 Restic snapshots are restorable.
 
 **Note:** The DR skill was written initially with a WSL-local `~/.hermes-data/backups/` approach. That path does *not* exist / is not actively used. The live backup system is the D: drive + PowerShell task. When you load the DR skill, just use the D: drive restore path instead of the WSL-local one. I'll patch the skill to reflect this once I can get past the TIRITH security scanner on it.
 
@@ -107,6 +120,13 @@ The D: drive backup is the canonical, running backup system. My DR skill (`ops/a
 | Cognee DeepSeek adapter | Prior issue with JSON parsing on v4-flash — current status unknown | 🔍 May be resolved |
 | Skill registration | TIRITH blocked `skill_manage` for DR skill due to config/secrets references | ⚠️ Workaround: raw file write |
 
+## Future / Deferred
+- **Remote backup backend** — Restic supports Backblaze B2 natively (one extra `restic copy` step). Deferred. Risk: ransomware or theft-while-USB-plugged-in would take both C: and D: simultaneously. Revisit when B2 account is ready.
+
+## Runbook Candidates (not yet authored)
+- **Gateway recovery** — Discord shard teardown / Slack DNS executor death pattern (May 8 2026 incident). Covers: detecting dead gateway, restart sequence, reconnect verification.
+- **Cognee health check + restart** — container running but MCP memorize failing or graph build stalled. Covers: log triage, container restart order, canary ingest test, fallback to SQL path.
+
 ## Pointers
 - **DR Skill:** `~/.hermes/skills/ops/argus-disaster-recovery/SKILL.md`
 - **GitHub:** `Russell-Shirley/Hermes-Argus` (default branch: `master`)
@@ -114,3 +134,5 @@ The D: drive backup is the canonical, running backup system. My DR skill (`ops/a
 - **LLM toggle:** `scripts/switch-llm.ps1 deepseek|gemma`
 - **Skill sync:** `scripts/sync-skills-to-hermes.sh` (repo → runtime)
 - **Watchdog register:** `deploy/register-watchdog.ps1`
+- **Hindsight start:** `deploy/hindsight-start.ps1` (idempotent — stale PID + pg_ctl + MCP)
+- **Hindsight register:** `deploy/register-hindsight-task.ps1` (run once to register Task Scheduler task)
