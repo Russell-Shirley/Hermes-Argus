@@ -8,7 +8,7 @@
       1. pg_dumpall from argus-openbrain container  -> D:\hermes-backups\postgres\
       2. docker save hermes-argus-cognee-server:latest -> D:\hermes-backups\images\
       3. docker save postgres:17                       -> D:\hermes-backups\images\
-      4. Restic snapshot of ~/.hermes-data bind mounts -> D:\hermes-backups\restic-repo\
+      4. Restic snapshot of ~/.hermes + ~/.hermes-data  -> D:\hermes-backups\restic-repo\
       5. pg_dumpall from Hindsight standalone PG       -> D:\hermes-backups\postgres\
 
     After all steps:
@@ -31,6 +31,7 @@ $PostgresDir       = "$BackupRoot\postgres"
 $ImagesDir         = "$BackupRoot\images"
 $StatusFile        = "$BackupRoot\last-status.json"
 $HermesData        = "$env:USERPROFILE\.hermes-data"
+$HermesConfig      = "$env:USERPROFILE\.hermes"
 $Timestamp         = Get-Date -Format "yyyy-MM-dd_HH-mm"
 $DateStamp         = Get-Date -Format "yyyy-MM-dd"
 $HindsightPgDump   = "$env:USERPROFILE\.pg0\installation\18.1.0\bin\pg_dumpall.exe"
@@ -176,11 +177,17 @@ try {
 Get-ChildItem "$ImagesDir\postgres-17_*.tar" -ErrorAction SilentlyContinue |
     Sort-Object LastWriteTime -Descending | Select-Object -Skip 3 | Remove-Item -Force
 
-# -- Step 4: Restic snapshot of ~/.hermes-data --------------------------------
-Write-Step "Step 4/5 -- Restic snapshot of ~/.hermes-data"
+# -- Step 4: Restic snapshot of ~/.hermes + ~/.hermes-data -------------------
+Write-Step "Step 4/5 -- Restic snapshot of ~/.hermes (config/skills/cron/secrets) + ~/.hermes-data (cognee/postgres volumes)"
 if (Test-Path $ResticExe) {
     try {
-        $ResticOut = & $ResticExe backup $HermesData --tag hermes-argus --json 2>&1
+        $ResticOut = & $ResticExe backup $HermesConfig $HermesData `
+            --exclude "$HermesConfig\cache" `
+            --exclude "$HermesConfig\logs" `
+            --exclude "$HermesConfig\bin" `
+            --exclude "*.pid" `
+            --exclude "*.lock" `
+            --tag hermes-argus --json 2>&1
         if ($LASTEXITCODE -ne 0) { throw "restic backup exited $($LASTEXITCODE) -- $($ResticOut -join ' ')" }
 
         $SummaryLine = $ResticOut |
