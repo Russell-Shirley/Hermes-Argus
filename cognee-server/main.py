@@ -17,17 +17,19 @@ os.environ["DB_NAME"] = "openbrain"
 os.environ["DB_USERNAME"] = "postgres"
 os.environ["DB_PASSWORD"] = "argus"
 
-# LLM — DeepSeek (native provider in Cognee via PR #2790)
-os.environ["LLM_PROVIDER"] = "deepseek"
-os.environ["LLM_MODEL"] = "deepseek-chat"
-os.environ["LLM_API_KEY"] = os.environ.get("DEEPSEEK_API_KEY", "")
+# LLM — env-driven via .env.llm.active (deepseek default, gemma toggle via switch-llm.ps1)
+# setdefault so .env values win; hardcoded values are fallbacks only.
+os.environ.setdefault("LLM_PROVIDER", "deepseek")
+os.environ.setdefault("LLM_MODEL", "deepseek-chat")
+if not os.environ.get("LLM_API_KEY"):
+    os.environ["LLM_API_KEY"] = os.environ.get("DEEPSEEK_API_KEY", "")
 
-# Embeddings — Ollama (local, free; DeepSeek has no embedding API)
-os.environ["EMBEDDING_PROVIDER"] = "ollama"
-os.environ["EMBEDDING_MODEL"] = os.environ.get("LOCAL_LLM_MODEL", "gemma4:e4b")
-os.environ["EMBEDDING_ENDPOINT"] = "http://host.docker.internal:11434/v1"
-os.environ["EMBEDDING_API_KEY"] = "dummy-key-for-ollama"
-os.environ["EMBEDDING_DIMENSIONS"] = "4096"
+# Embeddings — env-driven; default nomic-embed-text (768 dim, purpose-built embedder)
+os.environ.setdefault("EMBEDDING_PROVIDER", "ollama")
+os.environ.setdefault("EMBEDDING_MODEL", "nomic-embed-text")
+os.environ.setdefault("EMBEDDING_ENDPOINT", "http://host.docker.internal:11434/v1")
+os.environ.setdefault("EMBEDDING_API_KEY", "dummy-key-for-ollama")
+os.environ.setdefault("EMBEDDING_DIMENSIONS", "768")
 
 os.environ["COGNEE_SKIP_CONNECTION_TEST"] = "true"
 

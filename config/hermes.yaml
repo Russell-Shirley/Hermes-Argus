@@ -31,6 +31,14 @@ mcp_servers:
     command: python
     args: ["cognee-server/slack_mcp.py"]
 
+  vision:
+    command: python
+    args: ["cognee-server/vision_mcp.py"]
+    env:
+      VISION_MODEL: ${VISION_MODEL:-moondream}
+      VISION_KEEP_ALIVE: ${VISION_KEEP_ALIVE:-5m}
+      OLLAMA_URL: ${OLLAMA_URL:-http://localhost:11434}
+
   google-workspace:
     command: uv
     args: ["run", "-m", "google_tools.server"]
@@ -104,6 +112,5 @@ agent:
 
     # Slack Status Reactions
     Hermes automatically manages the eyes and checkmark reactions — do not add those yourself.
-    Your only reaction responsibility: after a Cognee memory write is confirmed successful, call
-    slack__slack_add_reaction(channel=<group>, timestamp=<thread>, name="brain")
-    where group and thread come from your session context. If it returns ok:false, skip and continue.
+    Your only reaction responsibility: after a Cognee memory write is confirmed successful, add
+    an inline 🧠 emoji in your response to signal the write completed.

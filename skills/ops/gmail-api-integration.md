@@ -1,14 +1,42 @@
 ---
 name: gmail-api-integration
-description: Setup and usage guide for read-only Gmail API integration — covers Google Cloud project setup, OAuth 2.0 flow, and email reading.
-trigger: When setting up Gmail API access, troubleshooting OAuth, or writing code to read emails via Gmail API.
+description: |
+  Setup and usage guide for read-only Gmail API integration — covers Google Cloud
+  project setup, OAuth 2.0 flow, and email reading.
+  DO NOT use for: sending emails, modifying mailbox, or non-Gmail email providers.
 category: ops
-metadata:
-  hermes:
-    tags: [gmail, api, oauth, email, integration]
-    related_skills: []
+domain: email
+intent:
+  - gmail-setup
+  - oauth-configuration
+  - email-reading
+exclusions:
+  - email-sending
+  - mailbox-modification
+  - non-gmail
+requires:
+  - google-cloud-project
+  - oauth-credentials
+phase: setup
+compatible_with: []
+conflicts_with: []
+handoff_to: []
+scope: local-only
+data_access:
+  mcp_servers: []
+  secrets: [GMAIL_CREDENTIALS, GMAIL_TOKEN]
+  trust_level: user-data
+governed_by: []
+version: 1.0.0
+compatibility:
+  min_runtime: hermes-1.0
+deprecated: false
+deprecation_notes: ""
+examples:
+  - "Set up Gmail API for reading invoices from a client's inbox"
+  - "Troubleshoot expired OAuth token during email fetch"
+  - "Read unread emails from a Gmail label"
 ---
-
 # Gmail API Integration (Read-Only)
 
 ## Overview
@@ -18,94 +46,59 @@ This skill describes how to set up Gmail API access so the assistant can read em
 
 ### 1. Create a Google Cloud Project
 1. Go to https://console.cloud.google.com/
-2. Create a new project (or select existing)
-3. Enable the **Gmail API**:
-   - Navigate to "APIs & Services" > "Library"
-   - Search for "Gmail API" and enable it
+2. Create a new project or select existing
+3. Note the Project ID
 
-### 2. Configure OAuth Consent Screen
-1. Go to "APIs & Services" > "OAuth consent screen"
-2. Choose **External** (or Internal if using Google Workspace)
-3. Fill in:
-   - App name
-   - User support email
-   - Developer contact info
-4. Add **scopes**:
-   - `https://www.googleapis.com/auth/gmail.readonly`
-5. Add test users (your email address)
-6. Publish app (if External)
+### 2. Enable Gmail API
+1. Go to APIs & Services > Library
+2. Search for "Gmail API"
+3. Click Enable
 
-### 3. Create OAuth 2.0 Credentials
-1. Go to "APIs & Services" > "Credentials"
-2. Click "Create Credentials" > "OAuth client ID"
-3. Choose **Desktop application** (or Web application)
-4. Download the JSON credentials file
+### 3. Configure OAuth Consent Screen
+1. Go to APIs & Services > OAuth consent screen
+2. Choose "External" user type
+3. Fill required fields (App name, support email, developer contact)
+4. Add scopes: `https://www.googleapis.com/auth/gmail.readonly`
+5. Add test users (your Gmail address)
+6. Publish app (required for refresh tokens to last beyond 7 days)
 
-## Authentication Flow (OAuth 2.0)
+### 4. Create OAuth 2.0 Credentials
+1. Go to APIs & Services > Credentials
+2. Click Create Credentials > OAuth client ID
+3. Choose "Desktop application"
+4. Download the JSON file as `credentials.json`
 
-### Step 1: Get Authorization URL
+### 5. Generate Token
 ```python
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
+flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+creds = flow.run_local_server(port=0)
 
-flow = InstalledAppFlow.from_client_secrets_file(
-    'credentials.json', SCOPES)
-auth_url, _ = flow.authorization_url(
-    access_type='offline',
-    include_granted_scopes='true')
-print(f'Go to: {auth_url}')
+# Save token
+with open('token.json', 'w') as token:
+    token.write(creds.to_json())
 ```
 
-### Step 2: User Authorizes
-User visits the URL, logs into their Google account, grants read-only access, and gets an authorization code.
-
-### Step 3: Exchange Code for Tokens
+## Reading Emails
 ```python
-flow.fetch_token(code=AUTHORIZATION_CODE)
-# Tokens are now stored in flow.credentials
-# Includes: access_token, refresh_token, token_expiry
-```
-
-## Reading Emails (Read-Only)
-
-### List Messages
-```python
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
+# Load credentials
+creds = Credentials.from_authorized_user_file('token.json', SCOPES)
 service = build('gmail', 'v1', credentials=creds)
 
-# List recent 10 messages
-results = service.users().messages().list(
-    userId='me', maxResults=10).execute()
+# List messages
+results = service.users().messages().list(userId='me', maxResults=10).execute()
 messages = results.get('messages', [])
+
+# Get full message
+msg = service.users().messages().get(userId='me', id=messages[0]['id'], format='full').execute()
 ```
 
-### Get Full Message Content
-```python
-msg = service.users().messages().get(
-    userId='me', id=msg_id, format='full').execute()
-
-# Extract headers
-headers = msg['payload']['headers']
-subject = next(h['value'] for h in headers if h['name'] == 'Subject')
-from_email = next(h['value'] for h in headers if h['name'] == 'From')
-date = next(h['value'] for h in headers if h['name'] == 'Date')
-
-# Extract body (handle multipart)
-def get_body(payload):
-    if 'parts' in payload:
-        for part in payload['parts']:
-            if part['mimeType'] == 'text/plain':
-                return base64.urlsafe_b64decode(
-                    part['body']['data']).decode('utf-8')
-    elif 'data' in payload['body']:
-        return base64.urlsafe_b64decode(
-            payload['body']['data']).decode('utf-8')
-    return ''
-```
-
-## Security Notes
-- Use **read-only scope** only (`gmail.readonly`)
-- Store refresh tokens securely (encrypted)
-- Never hardcode credentials in code
+## Important Notes
+- Refresh tokens expire if app is in testing mode and not used for 7 days
+- Store both `credentials.json` and `token.json` securely (these are sensitive credentials)
+- For production, consider using a service account with domain-wide delegation instead

@@ -1,72 +1,49 @@
 ---
 name: ai-smb-consulting-quick-cash-strategy
-description: Reference for AI SMB consulting service offerings — provides pricing models, delivery timelines, and margin analysis for Tier 1-3 services.
-trigger: When asked about pricing strategy, service offerings, or revenue planning for AI SMB consulting.
+description: |
+  Reference for AI SMB consulting service offerings — pricing models, delivery
+  timelines, and margin analysis for Tier 1-3 services.
+  DO NOT use for: actual pricing quotes to clients, or client-specific proposals.
 category: business
-metadata:
-  hermes:
-    tags: [consulting, pricing, strategy, smb, revenue]
-    related_skills: []
+domain: strategy
+intent:
+  - pricing-strategy
+  - revenue-planning
+  - service-offering
+exclusions:
+  - client-pricing
+  - proposals
+requires: []
+phase: planning
+compatible_with: []
+conflicts_with: []
+handoff_to: []
+scope: liftable
+data_access:
+  mcp_servers: []
+  secrets: []
+  trust_level: standard
+governed_by: []
+version: 1.0.0
+compatibility:
+  min_runtime: hermes-1.0
+deprecated: false
+deprecation_notes: ""
+examples:
+  - "What should I charge for a basic workflow automation setup?"
+  - "Compare margin between Tier 2 and Tier 3 service offerings"
 ---
-
 # AI SMB Consulting — Quick Cash Strategy
 
 ## Overview
 Research on what services an AI SMB consulting company can offer to generate quick revenue, evaluated by speed-to-cash and margin.
 
----
+## Tier Structure
+| Tier | Service | Timeline | Margin |
+|------|---------|----------|--------|
+| T1 | Workflow assessment + recommendations | 1-2 weeks | High |
+| T2 | Single workflow automation | 2-4 weeks | Medium |
+| T3 | Full operational stack | 4-8 weeks | Lower (volume) |
 
-## Tier 1: Fastest / Highest Margin
-
-### 1. AI-Powered Customer Service Chatbots
-- Pre-built chatbot deployments for SMB websites
-- Pricing: $500–$3,000/month
-- Timeline: 1–2 weeks setup
-- Notes: High demand, low delivery cost once templated
-
-### 2. AI Content & Copywriting Services
-- Using ChatGPT/Claude to produce blogs, email sequences, ad copy, social media
-- Pricing: $1,000–$5,000/month retainer
-- Notes: Zero infrastructure, pure service margin
-
-### 3. AI Workflow Automation (Zapier/Make)
-- Automating manual workflows (invoicing, lead capture, reporting)
-- Pricing: $1,500–$5,000 setup + $500–$2,000/month
-- Notes: Recurring maintenance revenue, sticky once deployed
-
-### 4. AI Report Generation
-- Automated weekly/monthly business intelligence reports
-- Pricing: $500–$1,500/month
-- Notes: Low effort after initial setup, good add-on
-
-## Tier 2: Medium Speed / Good Margin
-
-### 5. AI-Powered SEO Services
-- Keyword research, content optimization, competitor analysis
-- Pricing: $1,000–$3,000/month
-- Timeline: Ongoing
-
-### 6. AI Training & Workshops
-- Teaching staff how to use ChatGPT, Claude, Midjourney
-- Pricing: $2,000–$5,000 per workshop (half-day)
-- Timeline: 1 week prep
-
-## Tier 3: Slower / Lower Margin (but needed)
-
-### 7. Custom Software Development
-- Building bespoke AI tools or integrations
-- Pricing: $10,000–$50,000 project
-- Timeline: 4–12 weeks
-
-### 8. Data Cleaning & Preparation
-- Preparing SMB data for AI ingestion
-- Pricing: $1,000–$10,000 project
-- Timeline: 1–4 weeks
-
-## How to Approach SMB Clients
-
-1. **Start with a free audit** — review their current processes for automation opportunities
-2. **Propose a small pilot** — pick one workflow, automate it, show ROI within 2 weeks
-3. **Expand from there** — once they trust you, upsell into chatbots, content, and reports
-4. **Offer tiered pricing** — basic/standard/premium to capture different budget levels
-5. **Use case studies** — show specific time/money saved for similar businesses
+## Key Insight
+Focus on T1 for quick cash. Assessment-first opens the door for T2/T3 upsell.
