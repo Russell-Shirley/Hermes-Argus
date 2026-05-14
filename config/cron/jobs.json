@@ -75,6 +75,43 @@
                      "require_approval":  false
                  },
                  {
+                     "id":  "backup_health_check",
+                     "name":  "backup_health_check",
+                     "schedule":  {
+                                      "kind":  "cron",
+                                      "expr":  "0 8 * * *",
+                                      "display":  "0 8 * * *"
+                                  },
+                     "schedule_display":  "0 8 * * *",
+                     "prompt":  "You are Argus. Check the nightly backup status:\n\n1. Query backup_jobs WHERE created_at >= NOW() - INTERVAL '25 hours' ORDER BY created_at DESC LIMIT 1.\n2. If no row found: post to Slack — ':warning: *Backup not recorded* — no backup_jobs row in the last 25 hours. The nightly task may not have run.'\n3. If status = 'failed': post to Slack — ':rotating_light: *Backup FAILED* last night. Error: <error_message>. Check D:\\hermes-backups\\last-status.json for details.'\n4. If status = 'success': no Slack message needed — log internally that backup is healthy.\n5. Also check: SELECT COUNT(*) FROM backup_jobs WHERE status = 'failed' AND created_at >= NOW() - INTERVAL '7 days'. If >= 3 consecutive failures exist, escalate with a warning even if today succeeded.\n\nDo NOT invent data. Only report what the query returns.",
+                     "skills":  [
+
+                                ],
+                     "skill":  null,
+                     "model":  null,
+                     "provider":  null,
+                     "base_url":  null,
+                     "script":  null,
+                     "repeat":  {
+                                    "times":  null,
+                                    "completed":  0
+                                },
+                     "enabled":  true,
+                     "state":  "scheduled",
+                     "paused_at":  null,
+                     "paused_reason":  null,
+                     "created_at":  null,
+                     "next_run_at":  null,
+                     "last_run_at":  null,
+                     "last_status":  null,
+                     "last_error":  null,
+                     "last_delivery_error":  null,
+                     "deliver":  "slack:#biz-bridgeandbolt",
+                     "origin":  null,
+                     "profile":  "default",
+                     "require_approval":  false
+                 },
+                 {
                      "id":  "outreach_daily",
                      "name":  "outreach_daily",
                      "schedule":  {

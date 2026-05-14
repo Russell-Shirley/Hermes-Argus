@@ -11,3 +11,7 @@ __pycache__/
 logs/
 data/
 *.log
+cognee-server/.env
+scripts/.replay_state.json
+cognee-server/.env.llm.deepseek
+cognee-server/.env.llm.active

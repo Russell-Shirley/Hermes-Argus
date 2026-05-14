@@ -1,23 +1,49 @@
 ---
 name: multi-agent-orchestration-framework
-description: Reference for Multica — a dev-managed agent orchestration framework. Competitive with Workmate for optimizing agent learning.
-trigger: When evaluating agent orchestration platforms, comparing Multica to Workmate, or researching multi-agent systems.
+description: |
+  Reference for Multica — a dev-managed agent orchestration framework.
+  Covers competitive analysis and architectural comparison.
+  DO NOT use for: implementation, deployment, or integration decisions.
 category: business
-metadata:
-  hermes:
-    tags: [multi-agent, orchestration, multica, agent-framework]
-    related_skills: [workmate-agent-framework]
+domain: research
+intent:
+  - agent-orchestration
+  - competitive-analysis
+  - multica-reference
+exclusions:
+  - implementation
+  - deployment
+  - integration
+requires: []
+phase: research
+compatible_with:
+  - workmate-agent-framework
+conflicts_with: []
+handoff_to: []
+scope: local-only
+data_access:
+  mcp_servers: []
+  secrets: []
+  trust_level: standard
+governed_by: []
+version: 1.0.0
+compatibility:
+  min_runtime: hermes-1.0
+deprecated: false
+deprecation_notes: ""
+examples:
+  - "Researching agent orchestration platforms for a client architecture"
+  - "Comparing Multica vs Workmate for an on-prem agent deployment"
 ---
-
 # Multi-Agent Orchestration Framework (Multica)
 
 ## Overview
 Dev-managed agent framework that orchestrates multiple AI agents, serving as a competitive solution for optimizing agents to learn.
 
-## Reference
-- Repository: [https://github.com/multica-ai/multica](https://github.com/multica-ai/multica)
+## Key Features
+- Multi-agent orchestration
+- Dev-managed configuration
+- Agent learning optimization
 
-## Key Points
-- Similar function to Workmate
-- Focus on orchestration and agent learning optimization
-- Dev-managed (developer controls the agent topology)
+## Comparison with Workmate
+See `workmate-agent-framework` for the parallel reference.

@@ -204,3 +204,27 @@ CREATE TABLE IF NOT EXISTS time_entries (
   notes TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- ============================================================
+-- BACKUP OBSERVABILITY
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS backup_jobs (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tool_name    TEXT NOT NULL,
+    -- 'restic+docker'
+  job_name     TEXT NOT NULL,
+    -- 'nightly-backup'
+  target       TEXT,
+    -- destination path, e.g. 'D:\hermes-backups'
+  status       TEXT NOT NULL,
+    -- 'success', 'failed', 'partial'
+  size_bytes   NUMERIC,
+  duration_sec INTEGER,
+  error_message TEXT,
+  started_at   TIMESTAMPTZ,
+  completed_at TIMESTAMPTZ,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_backup_jobs_status ON backup_jobs(status, created_at DESC);
