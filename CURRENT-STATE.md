@@ -121,11 +121,11 @@ The D: drive backup is the canonical, running backup system. My DR skill (`ops/a
 | Skill registration | TIRITH blocked `skill_manage` for DR skill due to config/secrets references | ⚠️ Workaround: raw file write |
 
 ## Future / Deferred
-- **Remote backup backend** — Restic supports Backblaze B2 natively (one extra `restic copy` step). Deferred. Risk: ransomware or theft-while-USB-plugged-in would take both C: and D: simultaneously. Revisit when B2 account is ready.
+- **Hindsight auto-start** — add to Task Scheduler so it survives reboots without manual intervention (tracked in issue #13)
 
-## Runbook Candidates (not yet authored)
-- **Gateway recovery** — Discord shard teardown / Slack DNS executor death pattern (May 8 2026 incident). Covers: detecting dead gateway, restart sequence, reconnect verification.
-- **Cognee health check + restart** — container running but MCP memorize failing or graph build stalled. Covers: log triage, container restart order, canary ingest test, fallback to SQL path.
+## Runbooks
+- **[Gateway recovery](docs/runbooks/gateway-recovery.md)** — sev-1. Slack silence / gateway crash. Watchdog restart, manual restart, known crash vectors (Discord disabled, MCP timeout active risk).
+- **[Cognee health check + restart](docs/runbooks/cognee-health-check.md)** — sev-2. MCP memorize failing or graph empty. Log triage, LLM switch, container restart order, canary ingest, BOM fix.
 
 ## Pointers
 - **DR Skill:** `~/.hermes/skills/ops/argus-disaster-recovery/SKILL.md`

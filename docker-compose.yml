@@ -30,6 +30,7 @@ services:
     volumes:
       - ${USERPROFILE}/.hermes-data/cognee/.cognee_system:/app/.cognee_system
       - ${USERPROFILE}/.hermes-data/cognee/.data_storage:/app/.data_storage
+      - ${USERPROFILE}/.hermes-data/cognee/.lbdb:/root/.lbdb
     depends_on:
       ob1:
         condition: service_healthy
