@@ -91,8 +91,9 @@ The watchdog task `HermesGatewayWatchdog` auto-starts at logon and on system wak
 Get-ScheduledTask -TaskName "HermesGatewayWatchdog" | Select-Object TaskName, State
 
 # Force-restart (stop gateway; watchdog relaunches automatically)
-$pid = (Get-Content "$env:USERPROFILE\.hermes\gateway_state.json" | ConvertFrom-Json).pid
-Stop-Process -Id $pid -Force
+# $PID is a read-only PowerShell automatic variable - use a different name.
+$gwPid = (Get-Content "$env:USERPROFILE\.hermes\gateway_state.json" | ConvertFrom-Json).pid
+Stop-Process -Id $gwPid -Force
 
 # Emergency manual start (if watchdog task is not registered)
 $hermesExe = "$env:USERPROFILE\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\Scripts\hermes.exe"
@@ -101,6 +102,8 @@ Start-Process -FilePath $hermesExe -ArgumentList "gateway","run" -WindowStyle Hi
 ```
 
 **Stopping:** `Stop-Process -Id <pid> -Force` (watchdog will restart it; stop the task first if a permanent stop is needed)
+
+**Upgrading `hermes-agent`:** Argus cannot upgrade himself — the watchdog relaunches `hermes.exe` within 5s of any `Stop-Process`, locking the files `pip` needs to replace. Use `deploy/upgrade-hermes.ps1` from a separate elevated PowerShell window. It disables the watchdog, snapshots `~/.hermes` to `~/.hermes-backups/<timestamp>/`, kills the gateway, runs `pip install --upgrade hermes-agent` against the Windows Python (not WSL), runs `hermes config migrate`, then re-enables the watchdog in a `finally` block. See `docs/runbooks/UPGRADE_HERMES.md` for details.
 
 ## Profiles
 
