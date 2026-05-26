@@ -9,6 +9,7 @@
       2. docker save hermes-argus-cognee-server:latest -> D:\hermes-backups\images\
       3. docker save postgres:17                       -> D:\hermes-backups\images\
       4. Restic snapshot of ~/.hermes + ~/.hermes-data  -> D:\hermes-backups\restic-repo\
+      4b.Copy Restic snapshot to Backblaze B2          -> s3:us-east-005.backblazeb2.com
       5. pg_dumpall from Hindsight standalone PG       -> D:\hermes-backups\postgres\
 
     After all steps:
@@ -37,6 +38,8 @@ $DateStamp         = Get-Date -Format "yyyy-MM-dd"
 $HindsightPgDump   = "$env:USERPROFILE\.pg0\installation\18.1.0\bin\pg_dumpall.exe"
 $HindsightPort     = 15432
 $HindsightUser     = "hindsight"
+$ResticB2Repo      = "s3:https://s3.us-east-005.backblazeb2.com/hermes-Argus-Hindsight-Openbrain"
+$B2CredFile        = Join-Path $PSScriptRoot "..\.env"
 
 # -- Result tracker -----------------------------------------------------------
 $Result = [ordered]@{
@@ -50,6 +53,7 @@ $Result = [ordered]@{
         postgres_image     = @{ status = "pending"; size_bytes = 0; error = $null }
         restic             = @{ status = "pending"; snapshot_id = $null; size_bytes = 0; error = $null }
         hindsight_postgres = @{ status = "pending"; size_bytes = 0; error = $null }
+        restic_b2          = @{ status = "pending"; error = $null }
     }
 }
 
@@ -188,7 +192,8 @@ if (Test-Path $ResticExe) {
             --exclude "*.pid" `
             --exclude "*.lock" `
             --tag hermes-argus --json 2>&1
-        if ($LASTEXITCODE -ne 0) { throw "restic backup exited $($LASTEXITCODE) -- $($ResticOut -join ' ')" }
+        if ($LASTEXITCODE -ge 1 -and $LASTEXITCODE -ne 3) { throw "restic backup exited $($LASTEXITCODE) -- $($ResticOut -join ' ')" }
+        if ($LASTEXITCODE -eq 3) { Write-Warning "  Restic exit 3 -- snapshot created but some files skipped (locked by running process)" }
 
         $SummaryLine = $ResticOut |
             Where-Object { $_ -match '"message_type"\s*:\s*"summary"' } |
@@ -211,6 +216,53 @@ if (Test-Path $ResticExe) {
     $Result.steps.restic.status = "skipped"
     $Result.steps.restic.error  = "restic.exe not found -- run register-backup-task.ps1"
     Write-Warning "  Restic skipped"
+}
+
+# -- Step 4b: Copy Restic snapshot to Backblaze B2 ---------------------------
+Write-Step "Step 4b/5 -- Restic copy to Backblaze B2"
+if (-not (Test-Path $ResticExe)) {
+    $Result.steps.restic_b2.status = "skipped"
+    $Result.steps.restic_b2.error  = "restic.exe not found"
+} elseif (-not (Test-Path $B2CredFile)) {
+    $Result.steps.restic_b2.status = "skipped"
+    $Result.steps.restic_b2.error  = "B2 credentials file not found at $B2CredFile -- run register-backup-task.ps1"
+    Write-Warning "  B2 copy skipped -- $B2CredFile not found"
+} else {
+    try {
+        Get-Content $B2CredFile | ForEach-Object {
+            if ($_ -match '^([^#=\s]+)\s*=\s*(.+)$') {
+                [System.Environment]::SetEnvironmentVariable($Matches[1], $Matches[2].Trim(), 'Process')
+            }
+        }
+
+        $env:RESTIC_REPOSITORY    = $ResticB2Repo
+        $env:RESTIC_PASSWORD_FILE = $PasswordFile
+
+        $savedEAP = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        $null = & $ResticExe snapshots 2>&1
+        $B2RepoExists = ($LASTEXITCODE -eq 0)
+        $ErrorActionPreference = $savedEAP
+
+        if (-not $B2RepoExists) {
+            Write-Step "  Initializing B2 repository (first run)..."
+            & $ResticExe init
+            if ($LASTEXITCODE -ne 0) { throw "restic init on B2 failed (exit $LASTEXITCODE)" }
+        }
+
+        & $ResticExe copy --from-repo $ResticRepo --from-password-file $PasswordFile
+        if ($LASTEXITCODE -ne 0) { throw "restic copy to B2 exited $LASTEXITCODE" }
+
+        $Result.steps.restic_b2.status = "success"
+        Write-Step "  OK -- B2 copy complete"
+    } catch {
+        Set-StepFailed "restic_b2" $_.Exception.Message
+    } finally {
+        $env:RESTIC_REPOSITORY    = $ResticRepo
+        $env:RESTIC_PASSWORD_FILE = $PasswordFile
+        [System.Environment]::SetEnvironmentVariable('AWS_ACCESS_KEY_ID', $null, 'Process')
+        [System.Environment]::SetEnvironmentVariable('AWS_SECRET_ACCESS_KEY', $null, 'Process')
+    }
 }
 
 # -- Step 5: Hindsight standalone PostgreSQL dump -----------------------------

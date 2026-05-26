@@ -27,7 +27,7 @@ if not os.environ.get("LLM_API_KEY"):
 # Embeddings — env-driven; default nomic-embed-text (768 dim, purpose-built embedder)
 os.environ.setdefault("EMBEDDING_PROVIDER", "ollama")
 os.environ.setdefault("EMBEDDING_MODEL", "nomic-embed-text")
-os.environ.setdefault("EMBEDDING_ENDPOINT", "http://host.docker.internal:11434/v1")
+os.environ.setdefault("EMBEDDING_ENDPOINT", "http://host.docker.internal:11434/api/embed")
 os.environ.setdefault("EMBEDDING_API_KEY", "dummy-key-for-ollama")
 os.environ.setdefault("EMBEDDING_DIMENSIONS", "768")
 
