@@ -1,4 +1,4 @@
-# Hindsight auto-start script.
+﻿# Hindsight auto-start script.
 # Idempotent — safe to run even if already running.
 # Triggers: AtLogOn + OnWake (registered by register-hindsight-task.ps1).
 #
@@ -14,6 +14,7 @@ $PgPort   = 15432
 $StartBat = "$env:USERPROFILE\.hindsight\start-hindsight.bat"
 $LogDir   = "$env:USERPROFILE\.hermes\logs"
 $LogFile  = "$LogDir\hindsight-start.log"
+$PgLog    = "$LogDir\hindsight-postgres.log"
 
 New-Item -ItemType Directory -Force -Path $LogDir | Out-Null
 
@@ -54,10 +55,27 @@ if (-not (Test-Path $PgCtl)) {
     Write-Log "ERROR: pg_ctl not found at $PgCtl"
     exit 1
 }
-Write-Log "Starting Hindsight Postgres (pg_ctl start)..."
-& $PgCtl start -D $PgData -w -t 30 2>&1 | ForEach-Object { Write-Log "  pg_ctl: $_" }
-if ($LASTEXITCODE -ne 0) {
-    Write-Log "ERROR: pg_ctl start failed (exit $LASTEXITCODE)"
+Write-Log "Starting Hindsight Postgres (pg_ctl start, non-blocking)..."
+# On Windows, pg_ctl spawns a detached postmaster that inherits stdio handles.
+# Anything that waits on the parent (pipes, Start-Process -Wait) blocks indefinitely
+# even with -l set. Workaround: launch fire-and-forget via cmd /c start /B, then
+# poll the port ourselves. pg_ctl writes its own stdout to a separate log file.
+$PgCtlOut = "$LogDir\hindsight-pgctl.out.log"
+"" | Set-Content -Path $PgCtlOut -Encoding ASCII
+$cmdArgs = "/c start /B `"`" `"$PgCtl`" start -D `"$PgData`" -l `"$PgLog`" >> `"$PgCtlOut`" 2>&1"
+Start-Process -FilePath "cmd.exe" -ArgumentList $cmdArgs -WindowStyle Hidden | Out-Null
+
+# Wait up to 60s for the port to bind.
+$portOpen = $false
+for ($i = 0; $i -lt 60; $i++) {
+    if (Get-NetTCPConnection -LocalPort $PgPort -State Listen -ErrorAction SilentlyContinue) {
+        $portOpen = $true
+        break
+    }
+    Start-Sleep -Seconds 1
+}
+if (-not $portOpen) {
+    Write-Log "ERROR: port $PgPort never bound (see $PgCtlOut and $PgLog)"
     exit 1
 }
 Write-Log "Postgres started on port $PgPort"
