@@ -166,31 +166,65 @@ def fallback_store(graph: dict):
 
 
 def query_graph_db(q: str) -> list:
-    """Fallback SQL search on nodes/edges. Tokenizes query for multi-word matching."""
+    """Fallback SQL search — reads Cognee v1 data table + file contents.
+    Cognee v1 uses hash-based filenames (not searchable by name ILIKE),
+    so we scan recent files for keyword matches."""
     import psycopg2
+    import os
     conn = psycopg2.connect(host="ob1", port=5432, dbname="openbrain", user="postgres", password="argus")
     cur = conn.cursor()
     try:
-        tokens = [t for t in q.split() if len(t) > 2]
+        tokens = [t.lower() for t in q.split() if len(t) > 2]
         if not tokens:
-            tokens = [q]
-        clauses = " OR ".join(["n.name ILIKE %s OR n.description ILIKE %s"] * len(tokens))
-        params = []
-        for t in tokens:
-            params.extend([f"%{t}%", f"%{t}%"])
-        cur.execute(
-            f"SELECT n.name, n.description, n.type FROM nodes n WHERE {clauses} LIMIT 20",
-            params,
-        )
-        nodes = [{"name": r[0], "description": r[1], "type": r[2]} for r in cur.fetchall()]
+            tokens = [q.lower()]
+
+        # Get all records, scan file contents for keyword matches
+        cur.execute('SELECT id, name, raw_data_location FROM "data" ORDER BY created_at DESC LIMIT 50')
+        rows = cur.fetchall()
+
         results = []
-        for node in nodes:
-            cur.execute(
-                "SELECT e.relationship_type, n2.name FROM edges e JOIN nodes n2 ON e.target_node_id = n2.id WHERE e.source_node_id = (SELECT id FROM nodes WHERE name = %s LIMIT 1) LIMIT 10",
-                (node["name"],),
-            )
-            relations = [{"type": r[0], "target": r[1]} for r in cur.fetchall()]
-            results.append({**node, "relations": relations} if relations else node)
+        for row_id, name, raw_loc in rows:
+            content = None
+            matched = False
+            if raw_loc and raw_loc.startswith("file://"):
+                fp = raw_loc[7:]
+                try:
+                    with open(fp) as f:
+                        content = f.read(2000)
+                    # Check if any token matches in content
+                    content_lower = content.lower()
+                    matched = any(t in content_lower for t in tokens)
+                except (FileNotFoundError, IOError):
+                    content = None
+
+            # Also match by name
+            if not matched and name:
+                name_lower = name.lower()
+                matched = any(t in name_lower for t in tokens)
+
+            if not matched:
+                continue
+
+            # Look up edges
+            try:
+                cur.execute(
+                    'SELECT e.relationship_type, eo.name FROM "edges" e '
+                    'JOIN "data" eo ON e.target_node_id = eo.id '
+                    'WHERE e.source_node_id = %s LIMIT 10',
+                    (row_id,),
+                )
+                relations = [{"type": r[0], "target": r[1]} for r in cur.fetchall()]
+            except Exception:
+                relations = []
+
+            entry = {"name": name, "content": content[:500] if content else None}
+            if relations:
+                entry["relations"] = relations
+            results.append(entry)
+
+            if len(results) >= 10:
+                break
+
         return results
     finally:
         cur.close()
@@ -208,15 +242,9 @@ async def learn_graph(payload: LearnPayload, background_tasks: BackgroundTasks):
 async def query_graph(q: str):
     try:
         logger.info(f"Querying graph for: {q}")
-        # Try Cognee's semantic search first
-        try:
-            results = await cognee.search(q)
-            if results:
-                return {"status": "success", "engine": "cognee", "data": [str(r) for r in results[:10]]}
-        except Exception as ce:
-            logger.warning(f"Cognee search failed, falling back to SQL: {ce}")
-
-        # Fallback to SQL
+        # Skip cognee.search — it blocks the event loop calling Gemma3 via Ollama
+        # on Windows (unreachable from Docker). Go straight to SQL fallback.
+        logger.info("Skipping cognee.search (Ollama unreachable from Docker), using SQL fallback")
         sql_results = query_graph_db(q)
         return {"status": "success", "engine": "sql_fallback", "data": sql_results}
     except Exception as e:
