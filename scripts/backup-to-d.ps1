@@ -1,36 +1,45 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Nightly backup of Hermes-Argus stack to D:\hermes-backups
+    Nightly backup of Hermes-Argus stack with Backblaze B2 as the PRIMARY target.
 
 .DESCRIPTION
-    Steps (each is independent -- a failure in one does not abort the others):
-      1. pg_dumpall from argus-openbrain container  -> D:\hermes-backups\postgres\
-      2. docker save hermes-argus-cognee-server:latest -> D:\hermes-backups\images\
-      3. docker save postgres:17                       -> D:\hermes-backups\images\
-      4. Restic snapshot of ~/.hermes + ~/.hermes-data  -> D:\hermes-backups\restic-repo\
-      4b.Copy Restic snapshot to Backblaze B2          -> s3:us-east-005.backblazeb2.com
-      5. pg_dumpall from Hindsight standalone PG       -> D:\hermes-backups\postgres\
+    Architecture (B2-primary; D: is a local secondary; Restic NEVER reads D:):
+      1. pg_dumpall OpenBrain  -> $PostgresDir (always on C: staging)
+      2. pg_dumpall Hindsight  -> $PostgresDir (always on C: staging)
+      3. Restic snapshot of ~/.hermes + ~/.hermes-data + $PostgresDir -> B2 (PRIMARY)
+      4. Restic copy B2 -> D:\hermes-backups\restic-repo (local secondary, only if D: online)
+      5. docker save cognee-server     -> D:\hermes-backups\images (only if D: online)
+      6. docker save postgres:17       -> D:\hermes-backups\images (only if D: online)
+
+    $PostgresDir is ALWAYS $env:LOCALAPPDATA\hermes-backups-staging\postgres so the Restic source paths sit
+    entirely on C:. This isolates the snapshot from D:-volume hiccups (a D: drop mid-read would crash restic).
+    The SQL dumps still reach D: via the Restic copy step (4), so D: ends up holding the snapshot of the dumps.
+
+    Docker image saves require D: (too large to stage on C:); images are recoverable from registry / compose build,
+    so a skip is acceptable when D: is offline or fails.
+
+    The script no longer aborts when D: is offline. The B2 offsite snapshot runs whenever B2 credentials and Restic
+    are available. The only hard-fail is "neither B2 nor D: reachable" -- no target at all.
 
     After all steps:
-      - Writes D:\hermes-backups\last-status.json
-      - Inserts a row into backup_jobs PostgreSQL table
+      - Writes last-backup-status.json (D: if available, else ~/.hermes\last-backup-status.json)
+      - Inserts a row into backup_jobs PostgreSQL table (skipped if Docker unreachable)
       - Posts Slack alert on failure if SLACK_BOT_TOKEN is available
 
 .NOTES
     Run register-backup-task.ps1 once first to download Restic and create the Task.
+    B2 credentials must be in Hermes-Argus\.env as AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY.
 #>
 
 $ErrorActionPreference = "Continue"
 
 # -- Config -------------------------------------------------------------------
 $BackupRoot        = "D:\hermes-backups"
+$StagingRoot       = "$env:LOCALAPPDATA\hermes-backups-staging"
 $ResticExe         = "$BackupRoot\tools\restic.exe"
-$ResticRepo        = "$BackupRoot\restic-repo"
+$ResticLocalRepo   = "$BackupRoot\restic-repo"
 $PasswordFile      = "$BackupRoot\.restic-password"
-$PostgresDir       = "$BackupRoot\postgres"
-$ImagesDir         = "$BackupRoot\images"
-$StatusFile        = "$BackupRoot\last-status.json"
 $HermesData        = "$env:USERPROFILE\.hermes-data"
 $HermesConfig      = "$env:USERPROFILE\.hermes"
 $Timestamp         = Get-Date -Format "yyyy-MM-dd_HH-mm"
@@ -48,12 +57,12 @@ $Result = [ordered]@{
     overall      = "success"
     error        = $null
     steps        = [ordered]@{
-        postgres           = @{ status = "pending"; size_bytes = 0; error = $null }
-        cognee_image       = @{ status = "pending"; size_bytes = 0; error = $null }
-        postgres_image     = @{ status = "pending"; size_bytes = 0; error = $null }
-        restic             = @{ status = "pending"; snapshot_id = $null; size_bytes = 0; error = $null }
-        hindsight_postgres = @{ status = "pending"; size_bytes = 0; error = $null }
-        restic_b2          = @{ status = "pending"; error = $null }
+        postgres            = @{ status = "pending"; size_bytes = 0; error = $null }
+        hindsight_postgres  = @{ status = "pending"; size_bytes = 0; error = $null }
+        restic_primary      = @{ status = "pending"; snapshot_id = $null; size_bytes = 0; error = $null; target = $null }
+        restic_d_local_copy = @{ status = "pending"; error = $null }
+        cognee_image        = @{ status = "pending"; size_bytes = 0; error = $null }
+        postgres_image      = @{ status = "pending"; size_bytes = 0; error = $null }
     }
 }
 
@@ -71,41 +80,90 @@ function Set-StepFailed {
     Write-Warning "STEP FAILED ($Step): $Msg"
 }
 
-# -- Pre-flight ---------------------------------------------------------------
-Write-Step "=== Hermes-Argus nightly backup starting ==="
+function Write-StatusFile {
+    param([string]$Path)
+    try {
+        $Result | ConvertTo-Json -Depth 5 | Set-Content -Path $Path -Encoding UTF8 -ErrorAction Stop
+        Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Status written to $Path"
+    } catch {
+        Write-Warning "Failed to write status file ${Path}: $($_.Exception.Message)"
+    }
+}
 
-if (-not (Test-Path "D:\")) {
+# -- Pre-flight ---------------------------------------------------------------
+Write-Step "=== Hermes-Argus nightly backup starting (B2-primary mode) ==="
+
+$DLocalAvailable = Test-Path "D:\"
+$B2Available     = Test-Path $B2CredFile
+
+# SQL dumps ALWAYS stage to C: -- keeps Restic's source paths off D: so a D: drop mid-snapshot can't crash restic.
+$PostgresDir = "$StagingRoot\postgres"
+
+if ($DLocalAvailable) {
+    $ImagesDir   = "$BackupRoot\images"
+    $StatusFile  = "$BackupRoot\last-status.json"
+} else {
+    Write-Warning "D: drive not present -- B2 will be the only target; docker image saves skipped this run"
+    $ImagesDir   = $null
+    $StatusFile  = "$HermesData\last-backup-status.json"
+}
+
+if (-not $B2Available -and -not $DLocalAvailable) {
     $Result.overall      = "failed"
-    $Result.error        = "D: drive not present -- backup aborted"
+    $Result.error        = "Neither D: drive nor B2 credentials available -- no backup target reachable"
     $Result.completed_at = (Get-Date).ToUniversalTime().ToString("o")
-    $FallbackStatus      = "$HermesData\last-backup-status.json"
-    $Result | ConvertTo-Json -Depth 5 | Set-Content -Path $FallbackStatus -Encoding UTF8
+    Write-StatusFile "$HermesData\last-backup-status.json"
     Write-Warning $Result.error
     exit 1
 }
 
-# Check Docker is reachable
+if (-not (Test-Path $ResticExe)) {
+    $Result.overall      = "failed"
+    $Result.error        = "Restic not found at $ResticExe -- run register-backup-task.ps1 first"
+    $Result.completed_at = (Get-Date).ToUniversalTime().ToString("o")
+    Write-StatusFile $StatusFile
+    Write-Warning $Result.error
+    exit 1
+}
+
+# Docker reachability (informational -- individual steps still try)
 $DockerOk = $false
 try {
     docker info 2>&1 | Out-Null
     if ($LASTEXITCODE -eq 0) { $DockerOk = $true }
 } catch {}
 if (-not $DockerOk) {
-    Write-Warning "Docker not reachable -- image and DB backup steps will fail"
+    Write-Warning "Docker not reachable -- DB dump and image save steps will fail; Restic snapshot of ~/.hermes-data still captures live volumes"
 }
 
 New-Item -ItemType Directory -Force -Path $PostgresDir | Out-Null
-New-Item -ItemType Directory -Force -Path $ImagesDir   | Out-Null
+if ($ImagesDir) { New-Item -ItemType Directory -Force -Path $ImagesDir | Out-Null }
 
-if (-not (Test-Path $ResticExe)) {
-    Write-Warning "Restic not found at $ResticExe -- run register-backup-task.ps1 first. Skipping Restic step."
+# Load B2 credentials (process-scope) for the primary repo
+if ($B2Available) {
+    Get-Content $B2CredFile | ForEach-Object {
+        if ($_ -match '^([^#=\s]+)\s*=\s*(.+)$') {
+            [System.Environment]::SetEnvironmentVariable($Matches[1], $Matches[2].Trim(), 'Process')
+        }
+    }
 }
 
-$env:RESTIC_REPOSITORY    = $ResticRepo
+# Pick PRIMARY repo: B2 if creds present, else fall back to D: local (degraded -- no offsite)
+if ($B2Available) {
+    $PrimaryRepo  = $ResticB2Repo
+    $PrimaryLabel = "B2"
+} else {
+    $PrimaryRepo  = $ResticLocalRepo
+    $PrimaryLabel = "D: local (B2 unavailable -- DEGRADED)"
+    Write-Warning "B2 credentials missing -- falling back to D: local Restic as primary; no offsite copy this run"
+}
+$Result.steps.restic_primary.target = $PrimaryLabel
+
+$env:RESTIC_REPOSITORY    = $PrimaryRepo
 $env:RESTIC_PASSWORD_FILE = $PasswordFile
 
-# -- Step 1: PostgreSQL dump --------------------------------------------------
-Write-Step "Step 1/5 -- pg_dumpall (argus-openbrain)"
+# -- Step 1: PostgreSQL dump (OpenBrain) --------------------------------------
+Write-Step "Step 1/6 -- pg_dumpall (argus-openbrain)"
 $DumpFile = "$PostgresDir\openbrain_$Timestamp.sql"
 try {
     $ContainerRunning = docker inspect -f "{{.State.Running}}" argus-openbrain 2>&1
@@ -131,142 +189,8 @@ try {
     Set-StepFailed "postgres" $_.Exception.Message
 }
 
-# Prune postgres dumps older than 7 days
-Get-ChildItem "$PostgresDir\openbrain_*.sql" -ErrorAction SilentlyContinue |
-    Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } |
-    Remove-Item -Force
-
-# -- Step 2: Docker image -- cognee-server ------------------------------------
-Write-Step "Step 2/5 -- docker save cognee-server"
-$CogneeImageFile = "$ImagesDir\cognee-server_$DateStamp.tar"
-try {
-    if (Test-Path $CogneeImageFile) {
-        Write-Step "  Already saved today -- skipping"
-        $Result.steps.cognee_image.status     = "success"
-        $Result.steps.cognee_image.size_bytes = (Get-Item $CogneeImageFile).Length
-    } else {
-        docker save -o $CogneeImageFile hermes-argus-cognee-server:latest
-        if ($LASTEXITCODE -ne 0) { throw "docker save exited $($LASTEXITCODE)" }
-        $ImgSize = (Get-Item $CogneeImageFile).Length
-        if ($ImgSize -lt 1MB) { throw "Saved image suspiciously small ($ImgSize bytes)" }
-        $Result.steps.cognee_image.status     = "success"
-        $Result.steps.cognee_image.size_bytes = $ImgSize
-        Write-Step "  OK -- $([math]::Round($ImgSize / 1GB, 2)) GB -> $CogneeImageFile"
-    }
-} catch {
-    Set-StepFailed "cognee_image" $_.Exception.Message
-}
-Get-ChildItem "$ImagesDir\cognee-server_*.tar" -ErrorAction SilentlyContinue |
-    Sort-Object LastWriteTime -Descending | Select-Object -Skip 3 | Remove-Item -Force
-
-# -- Step 3: Docker image -- postgres:17 --------------------------------------
-Write-Step "Step 3/5 -- docker save postgres:17"
-$PgImageFile = "$ImagesDir\postgres-17_$DateStamp.tar"
-try {
-    if (Test-Path $PgImageFile) {
-        Write-Step "  Already saved today -- skipping"
-        $Result.steps.postgres_image.status     = "success"
-        $Result.steps.postgres_image.size_bytes = (Get-Item $PgImageFile).Length
-    } else {
-        docker save -o $PgImageFile postgres:17
-        if ($LASTEXITCODE -ne 0) { throw "docker save exited $($LASTEXITCODE)" }
-        $PgImgSize = (Get-Item $PgImageFile).Length
-        $Result.steps.postgres_image.status     = "success"
-        $Result.steps.postgres_image.size_bytes = $PgImgSize
-        Write-Step "  OK -- $([math]::Round($PgImgSize / 1GB, 2)) GB -> $PgImageFile"
-    }
-} catch {
-    Set-StepFailed "postgres_image" $_.Exception.Message
-}
-Get-ChildItem "$ImagesDir\postgres-17_*.tar" -ErrorAction SilentlyContinue |
-    Sort-Object LastWriteTime -Descending | Select-Object -Skip 3 | Remove-Item -Force
-
-# -- Step 4: Restic snapshot of ~/.hermes + ~/.hermes-data -------------------
-Write-Step "Step 4/5 -- Restic snapshot of ~/.hermes (config/skills/cron/secrets) + ~/.hermes-data (cognee/postgres volumes)"
-if (Test-Path $ResticExe) {
-    try {
-        $ResticOut = & $ResticExe backup $HermesConfig $HermesData `
-            --exclude "$HermesConfig\cache" `
-            --exclude "$HermesConfig\logs" `
-            --exclude "$HermesConfig\bin" `
-            --exclude "*.pid" `
-            --exclude "*.lock" `
-            --tag hermes-argus --json 2>&1
-        if ($LASTEXITCODE -ge 1 -and $LASTEXITCODE -ne 3) { throw "restic backup exited $($LASTEXITCODE) -- $($ResticOut -join ' ')" }
-        if ($LASTEXITCODE -eq 3) { Write-Warning "  Restic exit 3 -- snapshot created but some files skipped (locked by running process)" }
-
-        $SummaryLine = $ResticOut |
-            Where-Object { $_ -match '"message_type"\s*:\s*"summary"' } |
-            Select-Object -Last 1
-        if ($SummaryLine) {
-            try {
-                $Snap = $SummaryLine | ConvertFrom-Json
-                $Result.steps.restic.snapshot_id = $Snap.snapshot_id
-                $Result.steps.restic.size_bytes  = $Snap.total_bytes_processed
-            } catch {}
-        }
-        $Result.steps.restic.status = "success"
-        Write-Step "  OK -- snapshot $($Result.steps.restic.snapshot_id)"
-
-        & $ResticExe forget --keep-daily 7 --keep-weekly 4 --keep-monthly 3 --prune --quiet
-    } catch {
-        Set-StepFailed "restic" $_.Exception.Message
-    }
-} else {
-    $Result.steps.restic.status = "skipped"
-    $Result.steps.restic.error  = "restic.exe not found -- run register-backup-task.ps1"
-    Write-Warning "  Restic skipped"
-}
-
-# -- Step 4b: Copy Restic snapshot to Backblaze B2 ---------------------------
-Write-Step "Step 4b/5 -- Restic copy to Backblaze B2"
-if (-not (Test-Path $ResticExe)) {
-    $Result.steps.restic_b2.status = "skipped"
-    $Result.steps.restic_b2.error  = "restic.exe not found"
-} elseif (-not (Test-Path $B2CredFile)) {
-    $Result.steps.restic_b2.status = "skipped"
-    $Result.steps.restic_b2.error  = "B2 credentials file not found at $B2CredFile -- run register-backup-task.ps1"
-    Write-Warning "  B2 copy skipped -- $B2CredFile not found"
-} else {
-    try {
-        Get-Content $B2CredFile | ForEach-Object {
-            if ($_ -match '^([^#=\s]+)\s*=\s*(.+)$') {
-                [System.Environment]::SetEnvironmentVariable($Matches[1], $Matches[2].Trim(), 'Process')
-            }
-        }
-
-        $env:RESTIC_REPOSITORY    = $ResticB2Repo
-        $env:RESTIC_PASSWORD_FILE = $PasswordFile
-
-        $savedEAP = $ErrorActionPreference
-        $ErrorActionPreference = "Continue"
-        $null = & $ResticExe snapshots 2>&1
-        $B2RepoExists = ($LASTEXITCODE -eq 0)
-        $ErrorActionPreference = $savedEAP
-
-        if (-not $B2RepoExists) {
-            Write-Step "  Initializing B2 repository (first run)..."
-            & $ResticExe init
-            if ($LASTEXITCODE -ne 0) { throw "restic init on B2 failed (exit $LASTEXITCODE)" }
-        }
-
-        & $ResticExe copy --from-repo $ResticRepo --from-password-file $PasswordFile
-        if ($LASTEXITCODE -ne 0) { throw "restic copy to B2 exited $LASTEXITCODE" }
-
-        $Result.steps.restic_b2.status = "success"
-        Write-Step "  OK -- B2 copy complete"
-    } catch {
-        Set-StepFailed "restic_b2" $_.Exception.Message
-    } finally {
-        $env:RESTIC_REPOSITORY    = $ResticRepo
-        $env:RESTIC_PASSWORD_FILE = $PasswordFile
-        [System.Environment]::SetEnvironmentVariable('AWS_ACCESS_KEY_ID', $null, 'Process')
-        [System.Environment]::SetEnvironmentVariable('AWS_SECRET_ACCESS_KEY', $null, 'Process')
-    }
-}
-
-# -- Step 5: Hindsight standalone PostgreSQL dump -----------------------------
-Write-Step "Step 5/5 -- pg_dumpall (Hindsight standalone PG on port $HindsightPort)"
+# -- Step 2: PostgreSQL dump (Hindsight standalone PG on port 15432) ---------
+Write-Step "Step 2/6 -- pg_dumpall (Hindsight standalone PG on port $HindsightPort)"
 $HindsightDumpFile = "$PostgresDir\hindsight_$Timestamp.sql"
 if (-not (Test-Path $HindsightPgDump)) {
     $Result.steps.hindsight_postgres.status = "skipped"
@@ -299,10 +223,175 @@ if (-not (Test-Path $HindsightPgDump)) {
     }
 }
 
-# Prune Hindsight dumps older than 7 days
+# -- Step 3: Restic snapshot to PRIMARY ($PrimaryLabel) ----------------------
+Write-Step "Step 3/6 -- Restic snapshot of ~/.hermes + ~/.hermes-data + $PostgresDir -> $PrimaryLabel"
+$env:RESTIC_REPOSITORY    = $PrimaryRepo
+$env:RESTIC_PASSWORD_FILE = $PasswordFile
+try {
+    # Init repo if it doesn't exist yet (first run on a new target)
+    $savedEAP = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    $null = & $ResticExe snapshots 2>&1
+    $RepoExists = ($LASTEXITCODE -eq 0)
+    $ErrorActionPreference = $savedEAP
+
+    if (-not $RepoExists) {
+        Write-Step "  Initializing $PrimaryLabel Restic repository (first run)..."
+        & $ResticExe init
+        if ($LASTEXITCODE -ne 0) { throw "restic init on $PrimaryLabel failed (exit $LASTEXITCODE)" }
+    }
+
+    # Defensive: remove stale locks older than 30 minutes (handles aborted prior runs)
+    & $ResticExe unlock 2>&1 | Out-Null
+
+    $ResticOut = & $ResticExe backup $HermesConfig $HermesData $PostgresDir `
+        --exclude "$HermesConfig\cache" `
+        --exclude "$HermesConfig\logs" `
+        --exclude "$HermesConfig\bin" `
+        --exclude "*.pid" `
+        --exclude "*.lock" `
+        --tag hermes-argus --json 2>&1
+    if ($LASTEXITCODE -ge 1 -and $LASTEXITCODE -ne 3) {
+        throw "restic backup exited $($LASTEXITCODE) -- $($ResticOut -join ' ')"
+    }
+    if ($LASTEXITCODE -eq 3) {
+        Write-Warning "  Restic exit 3 -- snapshot created but some files skipped (locked by running process)"
+    }
+
+    $SummaryLine = $ResticOut |
+        Where-Object { $_ -match '"message_type"\s*:\s*"summary"' } |
+        Select-Object -Last 1
+    if ($SummaryLine) {
+        try {
+            $Snap = $SummaryLine | ConvertFrom-Json
+            $Result.steps.restic_primary.snapshot_id = $Snap.snapshot_id
+            $Result.steps.restic_primary.size_bytes  = $Snap.total_bytes_processed
+        } catch {}
+    }
+    $Result.steps.restic_primary.status = "success"
+    Write-Step "  OK -- snapshot $($Result.steps.restic_primary.snapshot_id) on $PrimaryLabel"
+
+    & $ResticExe forget --keep-daily 7 --keep-weekly 4 --keep-monthly 3 --prune --quiet
+} catch {
+    Set-StepFailed "restic_primary" $_.Exception.Message
+}
+
+# -- Step 4: Restic copy PRIMARY -> D: local (secondary) ---------------------
+Write-Step "Step 4/6 -- Restic copy $PrimaryLabel -> D: local"
+if (-not $DLocalAvailable) {
+    $Result.steps.restic_d_local_copy.status = "skipped"
+    $Result.steps.restic_d_local_copy.error  = "D: drive not present"
+    Write-Warning "  D: not available -- D: local copy skipped (B2 still has the snapshot)"
+} elseif ($PrimaryLabel -like "D: local*") {
+    $Result.steps.restic_d_local_copy.status = "skipped"
+    $Result.steps.restic_d_local_copy.error  = "Primary is already D: local (B2 unavailable) -- nothing to copy"
+    Write-Warning "  B2 unavailable -- primary already on D:; nothing to copy"
+} else {
+    try {
+        $env:RESTIC_REPOSITORY    = $ResticLocalRepo
+        $env:RESTIC_PASSWORD_FILE = $PasswordFile
+
+        $savedEAP = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        $null = & $ResticExe snapshots 2>&1
+        $LocalRepoExists = ($LASTEXITCODE -eq 0)
+        $ErrorActionPreference = $savedEAP
+
+        if (-not $LocalRepoExists) {
+            Write-Step "  Initializing D: local Restic repository (first run)..."
+            & $ResticExe init
+            if ($LASTEXITCODE -ne 0) { throw "restic init on D: local failed (exit $LASTEXITCODE)" }
+        }
+
+        & $ResticExe unlock 2>&1 | Out-Null
+
+        & $ResticExe copy --from-repo $ResticB2Repo --from-password-file $PasswordFile
+        if ($LASTEXITCODE -ne 0) { throw "restic copy from B2 to D: local exited $LASTEXITCODE" }
+
+        & $ResticExe forget --keep-daily 7 --keep-weekly 4 --keep-monthly 3 --prune --quiet
+
+        $Result.steps.restic_d_local_copy.status = "success"
+        Write-Step "  OK -- D: local copy complete"
+    } catch {
+        Set-StepFailed "restic_d_local_copy" $_.Exception.Message
+    } finally {
+        $env:RESTIC_REPOSITORY    = $PrimaryRepo
+        $env:RESTIC_PASSWORD_FILE = $PasswordFile
+    }
+}
+
+# -- Step 5: Docker image -- cognee-server -----------------------------------
+Write-Step "Step 5/6 -- docker save cognee-server"
+if (-not $DLocalAvailable) {
+    $Result.steps.cognee_image.status = "skipped"
+    $Result.steps.cognee_image.error  = "D: drive offline -- image saves require D:"
+    Write-Warning "  Skipped -- D: not available"
+} else {
+    $CogneeImageFile = "$ImagesDir\cognee-server_$DateStamp.tar"
+    try {
+        if (Test-Path $CogneeImageFile) {
+            Write-Step "  Already saved today -- skipping"
+            $Result.steps.cognee_image.status     = "success"
+            $Result.steps.cognee_image.size_bytes = (Get-Item $CogneeImageFile).Length
+        } else {
+            docker save -o $CogneeImageFile hermes-argus-cognee-server:latest
+            if ($LASTEXITCODE -ne 0) { throw "docker save exited $($LASTEXITCODE)" }
+            $ImgSize = (Get-Item $CogneeImageFile).Length
+            if ($ImgSize -lt 1MB) { throw "Saved image suspiciously small ($ImgSize bytes)" }
+            $Result.steps.cognee_image.status     = "success"
+            $Result.steps.cognee_image.size_bytes = $ImgSize
+            Write-Step "  OK -- $([math]::Round($ImgSize / 1GB, 2)) GB -> $CogneeImageFile"
+        }
+    } catch {
+        Set-StepFailed "cognee_image" $_.Exception.Message
+    }
+    Get-ChildItem "$ImagesDir\cognee-server_*.tar" -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending | Select-Object -Skip 3 |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+}
+
+# -- Step 6: Docker image -- postgres:17 -------------------------------------
+Write-Step "Step 6/6 -- docker save postgres:17"
+if (-not $DLocalAvailable) {
+    $Result.steps.postgres_image.status = "skipped"
+    $Result.steps.postgres_image.error  = "D: drive offline -- image saves require D:"
+    Write-Warning "  Skipped -- D: not available"
+} else {
+    $PgImageFile = "$ImagesDir\postgres-17_$DateStamp.tar"
+    try {
+        if (Test-Path $PgImageFile) {
+            Write-Step "  Already saved today -- skipping"
+            $Result.steps.postgres_image.status     = "success"
+            $Result.steps.postgres_image.size_bytes = (Get-Item $PgImageFile).Length
+        } else {
+            docker save -o $PgImageFile postgres:17
+            if ($LASTEXITCODE -ne 0) { throw "docker save exited $($LASTEXITCODE)" }
+            $PgImgSize = (Get-Item $PgImageFile).Length
+            $Result.steps.postgres_image.status     = "success"
+            $Result.steps.postgres_image.size_bytes = $PgImgSize
+            Write-Step "  OK -- $([math]::Round($PgImgSize / 1GB, 2)) GB -> $PgImageFile"
+        }
+    } catch {
+        Set-StepFailed "postgres_image" $_.Exception.Message
+    }
+    Get-ChildItem "$ImagesDir\postgres-17_*.tar" -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTime -Descending | Select-Object -Skip 3 |
+        Remove-Item -Force -ErrorAction SilentlyContinue
+}
+
+# Prune SQL dumps older than 7 days from whichever dir we're using
+Get-ChildItem "$PostgresDir\openbrain_*.sql" -ErrorAction SilentlyContinue |
+    Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } |
+    Remove-Item -Force -ErrorAction SilentlyContinue
 Get-ChildItem "$PostgresDir\hindsight_*.sql" -ErrorAction SilentlyContinue |
     Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-7) } |
-    Remove-Item -Force
+    Remove-Item -Force -ErrorAction SilentlyContinue
+
+# Clear B2 credentials from process env
+if ($B2Available) {
+    [System.Environment]::SetEnvironmentVariable('AWS_ACCESS_KEY_ID', $null, 'Process')
+    [System.Environment]::SetEnvironmentVariable('AWS_SECRET_ACCESS_KEY', $null, 'Process')
+}
 
 # -- Finalize status ----------------------------------------------------------
 $Result.completed_at = (Get-Date).ToUniversalTime().ToString("o")
@@ -311,28 +400,37 @@ $StartedDt   = [DateTimeOffset]::Parse($Result.started_at)
 $CompletedDt = [DateTimeOffset]::Parse($Result.completed_at)
 $DurationSec = [int]($CompletedDt - $StartedDt).TotalSeconds
 
-$StatusJson = $Result | ConvertTo-Json -Depth 5
-$StatusJson | Set-Content -Path $StatusFile -Encoding UTF8
-Write-Step "Status written to $StatusFile"
+Write-StatusFile $StatusFile
 
 # -- Record to backup_jobs ----------------------------------------------------
-Write-Step "Recording to backup_jobs table"
-$OverallStatus = $Result.overall
-$ErrMsg        = if ($Result.error) { $Result.error.Replace("'", "''") } else { "" }
-$StartedStr    = $Result.started_at
-$CompletedStr  = $Result.completed_at
+if ($DockerOk) {
+    Write-Step "Recording to backup_jobs table"
+    $OverallStatus = $Result.overall
+    $ErrMsg        = if ($Result.error) { $Result.error.Replace("'", "''") } else { "" }
+    $StartedStr    = $Result.started_at
+    $CompletedStr  = $Result.completed_at
+    if ($B2Available -and $DLocalAvailable) {
+        $TargetLbl = 'B2+D:'
+    } elseif ($B2Available) {
+        $TargetLbl = 'B2-only'
+    } else {
+        $TargetLbl = 'D:-only'
+    }
 
-$InsertSql  = "INSERT INTO backup_jobs"
-$InsertSql += " (tool_name, job_name, target, status, duration_sec, error_message, started_at, completed_at)"
-$InsertSql += " VALUES ('restic+docker', 'nightly-backup', 'D:\hermes-backups',"
-$InsertSql += " '$OverallStatus', $DurationSec, NULLIF('$ErrMsg',''),"
-$InsertSql += " '$StartedStr'::timestamptz, '$CompletedStr'::timestamptz);"
+    $InsertSql  = "INSERT INTO backup_jobs"
+    $InsertSql += " (tool_name, job_name, target, status, duration_sec, error_message, started_at, completed_at)"
+    $InsertSql += " VALUES ('restic+docker', 'nightly-backup', '$TargetLbl',"
+    $InsertSql += " '$OverallStatus', $DurationSec, NULLIF('$ErrMsg',''),"
+    $InsertSql += " '$StartedStr'::timestamptz, '$CompletedStr'::timestamptz);"
 
-try {
-    docker exec argus-openbrain psql -U postgres -d openbrain -c $InsertSql 2>&1 | Out-Null
-    Write-Step "  DB record inserted"
-} catch {
-    Write-Warning "Could not write to backup_jobs: $($_.Exception.Message)"
+    try {
+        docker exec argus-openbrain psql -U postgres -d openbrain -c $InsertSql 2>&1 | Out-Null
+        Write-Step "  DB record inserted"
+    } catch {
+        Write-Warning "Could not write to backup_jobs: $($_.Exception.Message)"
+    }
+} else {
+    Write-Warning "Skipping backup_jobs DB insert -- Docker unreachable"
 }
 
 # -- Slack alert on failure ---------------------------------------------------
