@@ -90,6 +90,80 @@ function Write-StatusFile {
     }
 }
 
+function Test-DockerDaemonResponds {
+    # Hard-timeout ping of the daemon. Returns $true iff `docker version` succeeds within $TimeoutMs.
+    param([int]$TimeoutMs = 15000)
+    $psi = New-Object System.Diagnostics.ProcessStartInfo
+    $psi.FileName               = 'docker'
+    $psi.Arguments              = 'version --format "{{.Server.Version}}"'
+    $psi.UseShellExecute        = $false
+    $psi.RedirectStandardOutput = $true
+    $psi.RedirectStandardError  = $true
+    $psi.CreateNoWindow         = $true
+    $proc = New-Object System.Diagnostics.Process
+    $proc.StartInfo = $psi
+    try {
+        $null = $proc.Start()
+        if (-not $proc.WaitForExit($TimeoutMs)) {
+            try { $proc.Kill() } catch {}
+            return $false
+        }
+        return ($proc.ExitCode -eq 0)
+    } catch {
+        return $false
+    } finally {
+        $proc.Dispose()
+    }
+}
+
+function Wait-DockerReady {
+    # Returns $true when the Docker daemon answers a version probe.
+    # Side effect: launches Docker Desktop on the first iteration if its process is not running.
+    param(
+        [int]$TimeoutSec = 300,
+        [string]$DockerDesktopExe = "C:\Program Files\Docker\Docker\Docker Desktop.exe"
+    )
+
+    # Fast path: daemon already up
+    if (Test-DockerDaemonResponds -TimeoutMs 10000) {
+        Write-Step "  Docker daemon already responding"
+        return $true
+    }
+
+    # Best-effort launch of Docker Desktop (no-op if already running)
+    $ddProc = Get-Process -Name "Docker Desktop" -ErrorAction SilentlyContinue
+    if (-not $ddProc) {
+        if (Test-Path $DockerDesktopExe) {
+            Write-Step "  Docker Desktop not running -- launching it"
+            try {
+                Start-Process -FilePath $DockerDesktopExe -ErrorAction Stop
+            } catch {
+                Write-Warning "  Could not launch Docker Desktop: $($_.Exception.Message)"
+            }
+        } else {
+            Write-Warning "  Docker Desktop.exe not found at $DockerDesktopExe"
+        }
+    } else {
+        Write-Step "  Docker Desktop process is running but daemon is not responding -- waiting for backend to come up"
+    }
+
+    # Poll until daemon responds or deadline hits
+    $Deadline = (Get-Date).AddSeconds($TimeoutSec)
+    $attempt = 0
+    while ((Get-Date) -lt $Deadline) {
+        $attempt++
+        if (Test-DockerDaemonResponds -TimeoutMs 15000) {
+            $elapsed = [int]([TimeSpan]((Get-Date) - $Deadline.AddSeconds(-$TimeoutSec))).TotalSeconds
+            Write-Step "  Docker daemon ready after $attempt probe(s) (~${elapsed}s)"
+            return $true
+        }
+        Start-Sleep -Seconds 10
+    }
+
+    Write-Warning "Docker daemon did not respond within ${TimeoutSec}s -- DB and image steps will skip/fail"
+    return $false
+}
+
 # -- Pre-flight ---------------------------------------------------------------
 Write-Step "=== Hermes-Argus nightly backup starting (B2-primary mode) ==="
 
@@ -126,12 +200,11 @@ if (-not (Test-Path $ResticExe)) {
     exit 1
 }
 
-# Docker reachability (informational -- individual steps still try)
-$DockerOk = $false
-try {
-    docker info 2>&1 | Out-Null
-    if ($LASTEXITCODE -eq 0) { $DockerOk = $true }
-} catch {}
+# Docker reachability -- with bounded wait + auto-start of Docker Desktop.
+# Required because S4U-launched scheduled tasks fire before / outside Docker Desktop's
+# interactive-session startup, so Docker often isn't up at 02:00.
+Write-Step "Checking Docker daemon (will wait up to 5 min, starting Docker Desktop if needed)..."
+$DockerOk = Wait-DockerReady -TimeoutSec 300
 if (-not $DockerOk) {
     Write-Warning "Docker not reachable -- DB dump and image save steps will fail; Restic snapshot of ~/.hermes-data still captures live volumes"
 }
