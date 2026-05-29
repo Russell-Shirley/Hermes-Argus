@@ -29,7 +29,7 @@ $heartbeatTrigger = New-ScheduledTaskTrigger `
     -Once `
     -At (Get-Date).Date `
     -RepetitionInterval (New-TimeSpan -Minutes 5) `
-    -RepetitionDuration ([TimeSpan]::MaxValue)
+    -RepetitionDuration (New-TimeSpan -Days 9999)
 
 # Settings: restart on failure, run indefinitely
 $settings = New-ScheduledTaskSettingsSet `
