@@ -1,19 +1,21 @@
 # Hermes Gateway Watchdog
-# Starts the gateway and restarts it automatically on crash.
+# Starts the gateway inside WSL2 and restarts it automatically on crash.
 # Registered as a Windows Task Scheduler task via deploy/register-watchdog.ps1
 #
-# Root cause mitigated: MCP discovery's future.result(timeout=120) raises an
-# uncaught TimeoutError that kills the gateway. Watchdog auto-restarts it.
+# Uses exponential backoff on fast crashes (< 30s uptime) so a sustained
+# boot-loop slows to 5-minute retries rather than burning through a hard ceiling.
 
-$HermesExe       = "$env:USERPROFILE\AppData\Local\Packages\PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0\LocalCache\local-packages\Python313\Scripts\hermes.exe"
-$WatchdogLog     = "$env:USERPROFILE\.hermes\logs\watchdog.log"
-$RestartDelaySec = 5
-$MaxRestarts     = 200
+$WslExe       = "wsl.exe"
+$HermesCmd    = "/home/russell/.hermes/hermes-agent/venv/bin/hermes"
+$WatchdogLog  = "$env:USERPROFILE\.hermes\logs\watchdog.log"
+$MinDelaySec  = 5
+$MaxDelaySec  = 300   # 5-minute cap during sustained crash loops
+$FastCrashSec = 30    # uptime below this counts as a fast crash
 
 $env:PYTHONIOENCODING = "utf-8"
 
 function Write-Log($msg) {
-    $ts = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
+    $ts   = (Get-Date).ToString("yyyy-MM-dd HH:mm:ss")
     $line = "$ts  $msg"
     Add-Content -Path $WatchdogLog -Value $line
     Write-Host $line
@@ -21,31 +23,36 @@ function Write-Log($msg) {
 
 Write-Log "=== Watchdog started ==="
 
-$restarts = 0
+$delaySec = $MinDelaySec
+$attempt  = 0
 
-while ($restarts -le $MaxRestarts) {
-    Write-Log "Starting gateway (attempt $($restarts + 1))..."
+while ($true) {
+    $attempt++
+    Write-Log "Starting gateway inside WSL2 (attempt $attempt)..."
 
-    $proc = Start-Process -FilePath $HermesExe `
-                          -ArgumentList "gateway", "run" `
+    $startTime = Get-Date
+    $proc = Start-Process -FilePath $WslExe `
+                          -ArgumentList "-u", "russell", "bash", "-c", "$HermesCmd gateway run --replace" `
                           -WindowStyle Hidden `
                           -PassThru
 
-    Write-Log "Gateway PID $($proc.Id) launched"
-
+    Write-Log "Gateway PID $($proc.Id) launched (wsl.exe host)"
     $proc.WaitForExit()
     $exitCode = $proc.ExitCode
+    $uptime   = [int]((Get-Date) - $startTime).TotalSeconds
 
-    Write-Log "Gateway PID $($proc.Id) exited with code $exitCode"
+    Write-Log "Gateway wsl.exe PID $($proc.Id) exited (code=$exitCode uptime=${uptime}s)"
 
-    if ($restarts -ge $MaxRestarts) {
-        Write-Log "ERROR: hit restart ceiling ($MaxRestarts). Stopping watchdog."
-        break
+    if ($uptime -lt $FastCrashSec) {
+        $delaySec = [Math]::Min($delaySec * 2, $MaxDelaySec)
+        Write-Log "Fast crash — backoff increased to ${delaySec}s"
+    } else {
+        $delaySec = $MinDelaySec
+        Write-Log "Gateway ran $uptime s — backoff reset to ${delaySec}s"
     }
 
-    $restarts++
-    Write-Log "Restarting in ${RestartDelaySec}s..."
-    Start-Sleep -Seconds $RestartDelaySec
+    Write-Log "Restarting in ${delaySec}s..."
+    Start-Sleep -Seconds $delaySec
 }
 
-Write-Log "=== Watchdog exiting ==="
+Write-Log "=== Watchdog exiting (should never reach here) ==="
