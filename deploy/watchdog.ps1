@@ -23,6 +23,18 @@ function Write-Log($msg) {
 
 Write-Log "=== Watchdog started ==="
 
+# Single-instance guard via named OS mutex (atomic, no race condition).
+# First instance to start acquires the mutex and runs the loop.
+# Any subsequent instance (e.g. background Claude agent sessions) fails to acquire,
+# kicks the Task Scheduler task to ensure the real watchdog is running, and exits.
+$mutex    = New-Object System.Threading.Mutex($false, "Global\HermesGatewayWatchdog")
+$acquired = $mutex.WaitOne(0)
+if (-not $acquired) {
+    Write-Log "Another watchdog holds the mutex -- delegating to HermesGatewayWatchdog task and exiting."
+    Start-ScheduledTask -TaskName "HermesGatewayWatchdog" -ErrorAction SilentlyContinue
+    exit 0
+}
+
 $delaySec = $MinDelaySec
 $attempt  = 0
 
@@ -32,7 +44,7 @@ while ($true) {
 
     $startTime = Get-Date
     $proc = Start-Process -FilePath $WslExe `
-                          -ArgumentList "-u", "russell", "bash", "-c", "$HermesCmd gateway run --replace" `
+                          -ArgumentList "-u", "russell", "--", $HermesCmd, "gateway", "run", "--replace" `
                           -WindowStyle Hidden `
                           -PassThru
 
@@ -45,10 +57,10 @@ while ($true) {
 
     if ($uptime -lt $FastCrashSec) {
         $delaySec = [Math]::Min($delaySec * 2, $MaxDelaySec)
-        Write-Log "Fast crash — backoff increased to ${delaySec}s"
+        Write-Log "Fast crash -- backoff increased to ${delaySec}s"
     } else {
         $delaySec = $MinDelaySec
-        Write-Log "Gateway ran $uptime s — backoff reset to ${delaySec}s"
+        Write-Log "Gateway ran $uptime s -- backoff reset to ${delaySec}s"
     }
 
     Write-Log "Restarting in ${delaySec}s..."
