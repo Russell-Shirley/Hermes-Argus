@@ -147,6 +147,43 @@
                      "origin":  null,
                      "profile":  "outreach_agent",
                      "require_approval":  true
+                 },
+                 {
+                     "id":  "codegraph_health_check",
+                     "name":  "codegraph_health_check",
+                     "schedule":  {
+                                      "kind":  "cron",
+                                      "expr":  "15 9,17 * * *",
+                                      "display":  "15 9,17 * * *"
+                                  },
+                     "schedule_display":  "15 9,17 * * *",
+                     "prompt":  "You are Argus. Check the CodeGraph health status:\n\n1. Read the file D:\\hermes-backups\\codegraph-health.json. If that path does not exist, fall back to C:\\Users\\Russell\\.hermes-data\\codegraph-health.json.\n2. If neither file exists or can be read: post to Slack — ':rotating_light: *CodeGraph health file missing* — the Task Scheduler probe (HermesArgusCodeGraphCheck) may not have run. Check Task Scheduler or run scripts\\register-codegraph-health-task.ps1 from the Hermes-Argus repo.'\n3. Parse the JSON and check the `status` field:\n   - status = 'healthy': no Slack message needed. Log internally that CodeGraph is healthy.\n   - status = 'warning': post ':warning: *CodeGraph WARNING* — ' followed by each item in the warnings array.\n   - status = 'error': post ':rotating_light: *CodeGraph BROKEN* — ' followed by each item in the errors array and which repos are affected (repo.status != 'healthy').\n4. Staleness check: if checked_at timestamp is older than 14 hours from now, post ':warning: *CodeGraph probe is stale* — the health file has not been refreshed since <checked_at>. The HermesArgusCodeGraphCheck Task Scheduler task may have stopped running.'\n\nDo NOT invent data. Only report what the file contains.",
+                     "skills":  [
+
+                                ],
+                     "skill":  null,
+                     "model":  null,
+                     "provider":  null,
+                     "base_url":  null,
+                     "script":  null,
+                     "repeat":  {
+                                    "times":  null,
+                                    "completed":  0
+                                },
+                     "enabled":  true,
+                     "state":  "scheduled",
+                     "paused_at":  null,
+                     "paused_reason":  null,
+                     "created_at":  null,
+                     "next_run_at":  null,
+                     "last_run_at":  null,
+                     "last_status":  null,
+                     "last_error":  null,
+                     "last_delivery_error":  null,
+                     "deliver":  "slack:#biz-bridgeandbolt",
+                     "origin":  null,
+                     "profile":  "default",
+                     "require_approval":  false
                  }
              ]
 }
