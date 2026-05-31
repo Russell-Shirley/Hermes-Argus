@@ -5,6 +5,7 @@
 #
 # Uses exponential backoff on repeated restart failures so a sustained
 # boot-loop slows to 5-minute retries rather than hammering the stack.
+# Posts to Slack #biz-bridgeandbolt when the daemon goes down and when it recovers.
 
 $StartScript = "$env:USERPROFILE\Documents\GitHub\Hermes-Argus\deploy\hindsight-start.ps1"
 $ApiPort     = 8888
@@ -20,6 +21,34 @@ function Write-Log($msg) {
     Write-Host $line
 }
 
+function Get-SlackToken {
+    if ($env:SLACK_BOT_TOKEN) { return $env:SLACK_BOT_TOKEN }
+    $EnvFile = Join-Path $PSScriptRoot "..\cognee-server\.env"
+    if (Test-Path $EnvFile) {
+        $Line = Get-Content $EnvFile | Where-Object { $_ -match "^SLACK_BOT_TOKEN=" } | Select-Object -First 1
+        if ($Line) { return $Line.Split("=", 2)[1].Trim() }
+    }
+    return $null
+}
+
+function Send-SlackAlert {
+    param([Parameter(Mandatory)][string]$Text, [string]$Channel = "#biz-bridgeandbolt")
+    $Token = Get-SlackToken
+    if (-not $Token) {
+        Write-Log "SLACK_BOT_TOKEN not found -- alert suppressed: $Text"
+        return
+    }
+    $Body = (@{ channel = $Channel; text = $Text } | ConvertTo-Json -Compress)
+    try {
+        Invoke-RestMethod -Uri "https://slack.com/api/chat.postMessage" -Method Post `
+            -ContentType "application/json; charset=utf-8" `
+            -Headers @{ Authorization = "Bearer $Token" } `
+            -Body $Body | Out-Null
+    } catch {
+        Write-Log "Slack post failed: $($_.Exception.Message)"
+    }
+}
+
 function Test-Port($port) {
     return ($null -ne (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue))
 }
@@ -27,7 +56,6 @@ function Test-Port($port) {
 Write-Log "=== Hindsight watchdog started ==="
 
 # Single-instance guard via named OS mutex (atomic, no race condition).
-# Mirrors the pattern in watchdog.ps1 for the Hermes gateway.
 $mutex    = New-Object System.Threading.Mutex($false, "Global\HermesHindsightWatchdog")
 $acquired = $mutex.WaitOne(0)
 if (-not $acquired) {
@@ -35,12 +63,27 @@ if (-not $acquired) {
     exit 0
 }
 
-$delaySec = $MinDelaySec
+$delaySec    = $MinDelaySec
+$alertedDown = $false   # avoid repeated "down" alerts during backoff loop
 
 while ($true) {
     if (Test-Port $ApiPort) {
+        if ($alertedDown) {
+            Write-Log "Hindsight recovered on port $ApiPort -- sending recovery alert"
+            Send-SlackAlert ":white_check_mark: *Hindsight recovered* -- MCP API back on port $ApiPort."
+            $alertedDown = $false
+        }
+        $delaySec = $MinDelaySec
         Start-Sleep -Seconds $PollSec
         continue
+    }
+
+    # Port is down
+    if (-not $alertedDown) {
+        $ts = (Get-Date).ToString("HH:mm")
+        Write-Log "Port $ApiPort not listening -- sending down alert"
+        Send-SlackAlert ":rotating_light: *Hindsight is DOWN* -- MCP API not listening on port $ApiPort at $ts. Attempting restart..."
+        $alertedDown = $true
     }
 
     Write-Log "Port $ApiPort not listening -- invoking hindsight-start.ps1..."
@@ -58,6 +101,7 @@ while ($true) {
     } else {
         Write-Log "Hindsight back up on port $ApiPort -- backoff reset"
         $delaySec = $MinDelaySec
+        # Recovery alert fires at top of next loop when Test-Port succeeds
         Start-Sleep -Seconds $PollSec
     }
 }

@@ -184,6 +184,43 @@
                      "origin":  null,
                      "profile":  "default",
                      "require_approval":  false
+                 },
+                 {
+                     "id":  "hindsight_health_check",
+                     "name":  "hindsight_health_check",
+                     "schedule":  {
+                                      "kind":  "cron",
+                                      "expr":  "0 9,17 * * *",
+                                      "display":  "0 9,17 * * *"
+                                  },
+                     "schedule_display":  "0 9,17 * * *",
+                     "prompt":  "You are Argus. Check whether the Hindsight memory daemon is running:\n\n1. Check if port 8888 is listening: run Test-NetConnection -ComputerName localhost -Port 8888 -InformationLevel Quiet\n2. If port is NOT listening: post to Slack — ':rotating_light: *Hindsight daemon is DOWN* — port 8888 not responding. The watchdog should be restarting it, but manual check may be needed. Run deploy\\hindsight-start.ps1 from the Hermes-Argus repo if the watchdog is not recovering it.'\n3. If port IS listening: check the watchdog log for recent restart events. Read the last 20 lines of C:\\Users\\Russell\\.hermes\\logs\\hindsight-watchdog.log.\n4. If the watchdog log shows repeated restart failures in the last 6 hours: post to Slack — ':warning: *Hindsight watchdog is struggling* — repeated restart failures detected. Check the daemon error log at C:\\Users\\Russell\\.hermes\\logs\\hindsight-daemon.err.log'\n5. If everything is healthy: no Slack message needed. Log internally that Hindsight is healthy.\n\nDo NOT invent data. Only report what the port check and log show.",
+                     "skills":  [
+
+                                ],
+                     "skill":  null,
+                     "model":  null,
+                     "provider":  null,
+                     "base_url":  null,
+                     "script":  null,
+                     "repeat":  {
+                                    "times":  null,
+                                    "completed":  0
+                                },
+                     "enabled":  true,
+                     "state":  "scheduled",
+                     "paused_at":  null,
+                     "paused_reason":  null,
+                     "created_at":  null,
+                     "next_run_at":  null,
+                     "last_run_at":  null,
+                     "last_status":  null,
+                     "last_error":  null,
+                     "last_delivery_error":  null,
+                     "deliver":  "slack:#biz-bridgeandbolt",
+                     "origin":  null,
+                     "profile":  "default",
+                     "require_approval":  false
                  }
              ]
 }
