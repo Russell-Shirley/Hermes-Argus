@@ -1,0 +1,1 @@
+cat: /mnt/c/Users/Russell/Documents/GitHub/Hermes-Argus/skills/business/ai-smb-consulting-quick-cash-strategy.md: No such file or directory

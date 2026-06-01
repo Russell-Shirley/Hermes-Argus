@@ -4,8 +4,8 @@
 > Read at session start. Update on significant changes.
 
 ## Last Updated
-- **Date:** 2026-05-14
-- **By:** Claude Code (GH #13 fix — Hindsight Task Scheduler + backup verified)
+- **Date:** 2026-06-01
+- **By:** Hermes Agent (Skill folder standardization — three-lane structure)
 
 ## Identity
 - **Agent name:** Argus Panoptes ("Argus")
@@ -31,7 +31,7 @@
 Hermes Runtime (WSL2 ~/.hermes/)
   ├── config.yaml          — main config
   ├── .env                 — API keys/secrets (in password manager)
-  ├── skills/              — procedural knowledge (v5-compliant rollout in progress)
+  ├── skills/              — procedural knowledge (ICM subfolder structure)
   ├── cron/                — scheduled jobs
   └── profiles/            — sub-agent profiles (ar_watcher, voucher_scanner, outreach)
 
@@ -50,58 +50,57 @@ Windows Side
   └── Task Scheduler: HermesArgusBackup (nightly backup to D:)
 ```
 
+## Skills Structure — Three-Lane ICM Architecture
+
+All skills now follow the **ICM lowercase-hyphens** frontmatter convention and live in `skills/<domain>/<skill-name>/SKILL.md` subfolders.
+
+### 🏗️ Lane 1: Development (architecture, ops, content)
+
+| Skill | Domain | Path |
+|-------|--------|------|
+| `autonomous-memory-stack` | architecture | `skills/architecture/autonomous-memory-stack/SKILL.md` |
+| `local-postgres-to-supabase-migration` | architecture | `skills/architecture/local-postgres-to-supabase-migration/SKILL.md` |
+| `ollama-jit-vision-model` | architecture | `skills/architecture/ollama-jit-vision-model/SKILL.md` |
+| `argus-disaster-recovery` | ops | `skills/ops/argus-disaster-recovery/SKILL.md` |
+| `argus-slack-emoji-protocol` | ops | `skills/ops/argus-slack-emoji-protocol/SKILL.md` |
+| `gmail-api-integration` | ops | `skills/ops/gmail-api-integration/SKILL.md` |
+| `puppeteer-web-browsing` | ops | `skills/ops/puppeteer-web-browsing/SKILL.md` |
+| `vision-analysis` | content | `skills/content/vision-analysis/SKILL.md` |
+| `ui-design-models` | content | `skills/content/ui-design-models/SKILL.md` |
+| `water-safety-app-vision` | content | `skills/content/water-safety-app-vision/SKILL.md` |
+
+### 🤝 Lane 2: Client Services (clients)
+
+| Skill | Domain | Path |
+|-------|--------|------|
+| *(none yet)* | clients | `skills/clients/_context.md` — placeholder |
+
+### 🏢 Lane 3: Business/Internal (business)
+
+| Skill | Domain | Path |
+|-------|--------|------|
+| `ai-smb-consulting-quick-cash-strategy` | business | `skills/business/ai-smb-consulting-quick-cash-strategy/SKILL.md` |
+| `cinematic-html-presentation` | business | `skills/business/cinematic-html-presentation/SKILL.md` |
+| `multi-agent-orchestration-framework` | business | `skills/business/multi-agent-orchestration-framework/SKILL.md` |
+| `workmate-agent-framework` | business | `skills/business/workmate-agent-framework/SKILL.md` |
+
+### New Infrastructure
+
+- **`CONTEXT.md`** at repo root — Layer 1 routing doc mapping request types to lanes/domains
+- **`_config/lane-conventions.md`** — shared frontmatter template and naming rules
+
 ## Backup System — D: Drive (Primary)
 
-The D: drive backup is the canonical, running backup system. My DR skill (`ops/argus-disaster-recovery`) is the recovery procedures manual that references this system.
+The D: drive backup is the canonical, running backup system.
 
 | Component | Detail |
 |-----------|--------|
 | **Schedule** | Daily at 02:00 (Windows Task Scheduler — `HermesArgusBackup`) |
 | **Script** | `scripts/backup-to-d.ps1` — pg_dumpall + docker save + Restic |
 | **Register** | `scripts/register-backup-task.ps1` (run once as Admin) |
-| **Destination** | `D:\hermes-backups\` (USB external drive — separate physical device from C:) |
+| **Destination** | `D:\\hermes-backups\\` (USB external drive) |
 | **Contents** | Postgres dumps (7-day retention), Docker images (3 daily `.tar` exports), Restic repo (7 daily / 4 weekly / 3 monthly snapshots) |
-| **Status** | ✅ Running — last run 2026-05-14 14:47 (all 6 steps success, incl. hindsight_postgres 10.6 MB) |
 | **Observability** | `backup_jobs` table in Postgres; `backup_health_check` cron at 08:00 daily posts Slack alert on failure |
-| **DR skill** | `ops/argus-disaster-recovery` — comprehensive restore procedures (at `~/.hermes/skills/ops/argus-disaster-recovery/SKILL.md`) |
-
-**Backup — Backblaze B2 (Remote, Step 4b)**
-
-| Field | Value |
-|-------|-------|
-| Bucket | `hermes-Argus-Hindsight-Openbrain` |
-| Endpoint | `s3.us-east-005.backblazeb2.com` |
-| Credentials | `.env` at repo root on C: (`AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY`) — also in Bitwarden |
-| Encryption | Restic AES-256 (same key as local repo — `D:\hermes-backups\.restic-password`) |
-| Init | `scripts/register-backup-task.ps1` handles first-time repo init |
-
-**Critical:** `D:\hermes-backups\.restic-password` — in Bitwarden. Without it, neither local nor B2 Restic snapshots are restorable.
-
-**Note:** The DR skill was written initially with a WSL-local `~/.hermes-data/backups/` approach. That path does *not* exist / is not actively used. The live backup system is the D: drive + PowerShell task. When you load the DR skill, just use the D: drive restore path instead of the WSL-local one. I'll patch the skill to reflect this once I can get past the TIRITH security scanner on it.
-
-## Skills (v5 Rollout)
-
-**Status:** First v5-compliant skill created (`ops/argus-disaster-recovery`). Silent compliance patching in progress. Full decomposition of monolithic skills after BridgeBoard pilot.
-
-| Skill | v5 Status | Notes |
-|-------|-----------|-------|
-| Skills (all Bridge & Bolt authored) | ✅ v5-compliant | All 11 skills updated to extended frontmatter format |
-| `argus-disaster-recovery` | ✅ v5-compliant | Extended frontmatter, evals dir created |
-| `argus-slack-emoji-protocol` | ✅ v5-compliant | intent, exclusions, requires, scope, data_access, governed_by |
-| `business-email-response-playbook` | ✅ v5-compliant | Patched via skill_manage with full extended frontmatter |
-| `puppeteer-web-browsing` | ✅ v5-compliant | Full extended frontmatter |
-| `gmail-api-integration` | ✅ v5-compliant | Full extended frontmatter |
-| `vision-analysis` | ✅ v5-compliant | Full extended frontmatter |
-| `local-postgres-to-supabase-migration` | ✅ v5-compliant | Full extended frontmatter; scope: liftable |
-| `ai-smb-consulting-quick-cash-strategy` | ✅ v5-compliant | Full extended frontmatter; scope: liftable |
-| `multi-agent-orchestration-framework` | ✅ v5-compliant | Research skill with full frontmatter |
-| `workmate-agent-framework` | ✅ v5-compliant | Research skill with full frontmatter |
-| `ui-design-models` | ✅ v5-compliant | Research skill with full frontmatter |
-| `ollama-jit-vision-model` | ✅ v5-compliant | Architecture skill with full frontmatter |
-
-**V5 compliance =** extended frontmatter with `intent`, `exclusions`, `requires`, `phase`, `scope`, `data_access`, `governed_by`, `version`, `examples`.
-
-**Rule:** Argus provides compliance oversight only. Claude Code implements and inspects before signoff.
 
 ## Active Cron Jobs
 
@@ -116,16 +115,18 @@ The D: drive backup is the canonical, running backup system. My DR skill (`ops/a
 |-------|--------|--------|
 | Cognee MCP memorize | Memorize calls return `Error executing tool` despite both containers healthy | 🔍 Investigating |
 | Hermes memory tool | At capacity (2,154/2,200 chars) | Needs trimming |
-| CURRENT_STATE drift | Previously had 3 divergent files — consolidated here | ✅ Fixed |
-| Cognee DeepSeek adapter | Prior issue with JSON parsing on v4-flash — current status unknown | 🔍 May be resolved |
+| Cognee DeepSeek adapter | Prior issue with JSON parsing on v4-flash | 🔍 May be resolved |
 | Skill registration | TIRITH blocked `skill_manage` for DR skill due to config/secrets references | ⚠️ Workaround: raw file write |
 
 ## Future / Deferred
-- **Hindsight auto-start** — add to Task Scheduler so it survives reboots without manual intervention (tracked in issue #13)
+- **Extend ICM pattern to Bridgeboard repo** — apply same three-lane structure
+- **Extend to AI Factory** — align AI Factory skills frontmatter with Hermes-Argus convention
+- **Create client services skills** — populate `skills/clients/` with onboarding and outreach playbooks
+- **Hindsight auto-start** — add to Task Scheduler so it survives reboots (tracked in issue #13)
 
 ## Runbooks
-- **[Gateway recovery](docs/runbooks/gateway-recovery.md)** — sev-1. Slack silence / gateway crash. Watchdog restart, manual restart, known crash vectors (Discord disabled, MCP timeout active risk).
-- **[Cognee health check + restart](docs/runbooks/cognee-health-check.md)** — sev-2. MCP memorize failing or graph empty. Log triage, LLM switch, container restart order, canary ingest, BOM fix.
+- **[Gateway recovery](docs/runbooks/gateway-recovery.md)** — sev-1. Slack silence / gateway crash.
+- **[Cognee health check + restart](docs/runbooks/cognee-health-check.md)** — sev-2. MCP memorize failing or graph empty.
 
 ## Pointers
 - **DR Skill:** `~/.hermes/skills/ops/argus-disaster-recovery/SKILL.md`
@@ -134,5 +135,5 @@ The D: drive backup is the canonical, running backup system. My DR skill (`ops/a
 - **LLM toggle:** `scripts/switch-llm.ps1 deepseek|gemma`
 - **Skill sync:** `scripts/sync-skills-to-hermes.sh` (repo → runtime)
 - **Watchdog register:** `deploy/register-watchdog.ps1`
-- **Hindsight start:** `deploy/hindsight-start.ps1` (idempotent — stale PID + pg_ctl + MCP)
-- **Hindsight register:** `deploy/register-hindsight-task.ps1` (run once to register Task Scheduler task)
+- **Hindsight start:** `deploy/hindsight-start.ps1`
+- **Hindsight register:** `deploy/register-hindsight-task.ps1`

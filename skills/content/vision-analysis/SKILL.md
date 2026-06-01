@@ -1,7 +1,43 @@
----
+|---
 name: vision-analysis
-description: "Analyze images and extract text using vision tools. Covers vision__describe_image (Ollama/moondream, local), browser_vision, and when to use which. Includes keep_alive lifecycle tradeoffs, error recovery, and memory ingestion patterns."
+description: |-
+  Analyze images and extract text using vision tools — Ollama moondream
+  with JIT keep_alive lifecycle for VRAM efficiency.
+  DO NOT use for: OCR-only tasks (use tesseract), large batch image processing.
 category: content
+domain: image-processing
+intent:
+  - image-analysis
+  - ocr
+  - screenshot-reading
+  - vision-llm
+exclusions:
+  - ocr-only
+  - batch-processing
+  - video-analysis
+requires:
+  - ollama
+  - moondream
+  - vision_analyze
+phase: operations
+compatible_with: []
+conflicts_with: []
+handoff_to: []
+scope: local-only
+data_access:
+  mcp_servers: []
+  secrets: []
+  trust_level: standard
+governed_by: []
+version: 1.0.0
+compatibility:
+  min_runtime: hermes-1.0
+deprecated: false
+deprecation_notes: ""
+examples:
+  - "Extract text from a screenshot of an invoice"
+  - "Describe the contents of a UI mockup image"
+  - "Analyze a flowchart screenshot for decision points"
 ---
 
 # Vision Analysis Skill
@@ -29,104 +65,36 @@ Fetch an image from a URL and describe it using local Ollama moondream. Use for:
 - HTTPS URLs — work directly
 - Local paths on this machine — not supported; only URLs
 
-**Typical invocation pattern when a user sends an image:**
-```
-1. Call vision__describe_image(url=<slack attachment url>)
-2. Call cognee__memorize(text="Image from <date>: " + description)
-3. Add 🧠 reaction (brain) after Cognee write confirms
-4. Reply with a brief summary of what was found
-```
+### 2. `browser_vision(url, full_page_mode?)`
+Use the Hermes browser toolset for screenshots. Use for:
+- Rendering a web page and capturing what's actually displayed
+- Verifying visual layout or UI states
+- Capturing JavaScript-rendered content
 
-### 2. `browser_vision(question, annotate)`
-Take a screenshot of the current browser page and analyze it. Use for:
-- Visual verification of rendered pages
-- CAPTCHAs and visual challenges
-- Complex layouts the text snapshot doesn't capture
-- QA checks before reporting results
-- When `annotate=true`, overlays numbered labels [N] on interactive elements
+**Parameters:**
+- `url` — page URL to screenshot
+- `full_page_mode` — optional; captures the full scrollable page
 
-**Note:** `browser_vision` uses the host LLM (deepseek-chat), which does NOT support images. This tool fails with a 400 on the current model. Use `vision__describe_image` instead for any image content.
+## Procedure
 
-## Error Recovery
+1. **Identify what's needed** — text extraction vs visual description vs full page capture
+2. **Choose the tool** — `vision__describe_image` for image URL analysis, `browser_vision` for page screenshots
+3. **Run the analysis** — use the chosen tool with appropriate parameters
+4. **Handle results** — if the result is a description, return it to the user. If text extraction, verify critical data
+5. **Memory ingestion (optional)** — if the image contains important business info, use `cognee__memorize` to store extracted knowledge
+6. **Error recovery** — if vision tool fails, check if Ollama is running, if the model is pulled, or fall back to text-based alternatives
 
-### vision__describe_image errors
-The tool returns a `[Image could not be described — ...]` string (never raises) so the agent always gets a usable response:
+## Ollama JIT Lifecycle
 
-| Returned string | Likely cause | Action |
-|---|---|---|
-| `HTTP 404` | Bad URL or expired Slack link | Tell user the link expired |
-| `vision model unavailable` | Ollama not running / moondream not pulled | Check Ollama, run `ollama pull moondream` |
-| `empty response` | Model loaded but returned nothing | Retry once; if persistent, report to user |
+The vision MCP (`vision_mcp.py`) manages the Ollama model lifecycle:
+- On first request: `ollama run moondream` loads the model (~1.7GB VRAM)
+- Default `keep_alive: "5m"` — stays loaded 5 minutes after last use, then evicts
+- For immediate eviction: the MCP runs `ollama list` and checks residency
+- This prevents permanent VRAM occupancy for a model only used occasionally
 
-Fallback behavior: if vision is unavailable, reply with `[Attachment: <name> — image, could not be described]` and continue — never crash.
-
-### browser_vision / deepseek-chat errors
-**Error: "unknown variant `image_url`" (400)**
-This is a model capability issue — deepseek-chat does not support images.
-- Acknowledge you can't see the image with this model
-- Ask the user to paste any relevant text, or use `vision__describe_image` for Slack attachments
-
-## VRAM Lifecycle (`keep_alive`)
-
-Ollama's `keep_alive` controls how long moondream stays in VRAM after a request:
-
-| Value | Behavior |
-|-------|----------|
-| `"0"` | Evict immediately after the request |
-| `"5m"` | Keep warm 5 minutes after last use (default) |
-| `"-1"` | Keep loaded indefinitely |
-
-**Default is `"5m"`** — batch screenshots in one session share the warm model, then it self-evicts after 5 idle minutes.
-
-**VRAM contention with Gemma:** if VRAM is tight, Ollama evicts Gemma to load moondream, then reloads Gemma on the next text request (~2 min cold start each way). Options:
-
-| Strategy | Tradeoff |
-|----------|----------|
-| `VISION_KEEP_ALIVE=0` | Accept per-request cold load, protect Gemma residency |
-| `VISION_KEEP_ALIVE=-1` | Pin moondream — only works if VRAM fits both |
-| CPU offload (auto) | Ollama automatically layers moondream across GPU/CPU via `num_gpu`. On a 4 GB card, ~20–30 layers land on CPU. No config change needed, but inference is ~3–5× slower. No Gemma eviction. |
-
-**Diagnosing VRAM pressure:** if text responses feel slow after vision use, check if Gemma is reloading by watching `ollama ps` — if moondream appears alone after a chat message, Gemma was evicted and is reloading cold.
-
-## Text Extraction Patterns
-
-**From a Slack screenshot:**
-```
-vision__describe_image(
-    url="https://files.slack.com/files-pri/...",
-    prompt="Extract all the text from this image, preserving structure and formatting."
-)
-```
-
-**From a diagram:**
-```
-vision__describe_image(
-    url="https://...",
-    prompt="Describe the structure of this diagram, label all components, and explain the relationships shown."
-)
-```
-
-**For memory ingestion:**
-```
-description = vision__describe_image(url=attachment_url)
-cognee__memorize(text=f"Screenshot received {date}: {description}")
-```
-
-## Pitfalls
-- `vision__describe_image` may be slow on first call (~5–15 s) while moondream loads from disk
-- HEIC and WebP are not reliably supported — PNG and JPEG are safest
-- Very large images may time out — the tool has a 120 s inference timeout
-- The tool never raises; it always returns a string, including on errors
-- `browser_vision` requires `browser_navigate` to be called first and won't work with deepseek-chat
-
-## Configuration
-
-| Env var | Default | Purpose |
-|---------|---------|---------|
-| `VISION_MODEL` | `moondream` | Ollama model name |
-| `VISION_KEEP_ALIVE` | `5m` | VRAM residency after last request |
-| `OLLAMA_URL` | `http://localhost:11434` | Ollama endpoint |
-
-First-time setup: `ollama pull moondream`
-
-Alternative models: `llava` (4.7 GB, solid all-rounder), `minicpm-v` (5.5 GB, stronger at OCR/text-in-image)
+## Limitations
+- ~1.7GB VRAM during use
+- Not suitable for batch processing
+- Works best with clear, well-lit images
+- Text extraction is good but not OCR-perfect — verify critical data
+- Local image paths (file://) not supported — must be URLs
