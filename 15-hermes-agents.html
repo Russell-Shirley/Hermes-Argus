@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>15 Hermes Agent Use Cases — Nemanja Mirkovic</title>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --bg:#06070d;
+  --bg2:#0b0e18;
+  --panel:rgba(18,21,34,.72);
+  --panel2:rgba(25,28,44,.84);
+  --text:#f4f3f5;
+  --muted:#a9abb7;
+  --faint:#6f7281;
+  --accent-1:#ff8b61;
+  --accent-2:#d86f4f;
+  --accent-3:#9b86ff;
+  --accent-4:#59d99a;
+  --accent-5:#e9c75f;
+  --accent-6:#7fa7ff;
+  --accent-7:#ff695f;
+  --paper:#efe1c8;
+  --paper2:#dbc39a;
+  --ink:#4e3324;
+  --line:rgba(255,255,255,.12);
+  --glow:0 0 48px rgba(255,139,97,.28);
+  --shadow:0 34px 110px rgba(0,0,0,.48),inset 0 1px 0 rgba(255,255,255,.06);
+  --scene-w:min(1360px,calc(100vw - 5vw));
+  --radius:28px;
+  --font-sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --font-mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"Liberation Mono",monospace;
+  --font-serif:Georgia,"Times New Roman",serif;
+  --marketing:#ff8b61;
+  --sales:#9b86ff;
+  --business:#59d99a;
+}
+
+html{
+  background:var(--bg);
+  color:var(--text);
+  font-family:var(--font-sans);
+  -webkit-font-smoothing:antialiased;
+  height:100%;
+  overflow:hidden;
+}
+
+body{
+  margin:0;
+  height:100%;
+  overflow:hidden;
+  background:var(--bg);
+}
+
+body::before{
+  content:'';position:fixed;inset:0;
+  background:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)' opacity='.04'/%3E%3C/svg%3E");
+  background-size:180px;pointer-events:none;z-index:9999;
+}
+
+.serif{font-family:var(--font-serif);font-style:italic;letter-spacing:-.014em}
+
+.rail{
+  position:fixed;top:0;bottom:0;left:50%;width:2px;
+  transform:translateX(-50%);pointer-events:none;z-index:1;
+  background:linear-gradient(180deg,transparent 0,var(--accent-1) 10%,var(--accent-3) 30%,var(--accent-4) 50%,var(--accent-5) 70%,var(--accent-6) 86%,transparent 100%);
+  opacity:.05;
+}
+
+.deck{
+  scroll-snap-type:y mandatory;
+  scroll-behavior:smooth;
+  overflow-y:auto;
+  height:100vh;
+}
+
+.scene{
+  scroll-snap-align:start;
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  position:relative;
+  padding:64px 32px;
+}
+
+.scene-inner{
+  width:var(--scene-w);
+  max-width:100%;
+  position:relative;
+  z-index:2;
+}
+
+/* ====== HERO ====== */
+.hero .scene-inner{text-align:left}
+
+.hero h1{
+  font-size:clamp(2.8rem,7.5vw,6.2rem);
+  font-weight:800;
+  letter-spacing:-.048em;
+  word-spacing:.045em;
+  line-height:.88;
+  margin-bottom:32px;
+}
+
+.hero .tagline{
+  font-size:clamp(1.15rem,2.4vw,1.55rem);
+  color:var(--muted);
+  max-width:620px;
+  line-height:1.5;
+  margin-bottom:14px;
+}
+
+.hero .subtitle{
+  font-size:clamp(.88rem,1.3vw,1.02rem);
+  color:var(--faint);
+  max-width:580px;
+  line-height:1.65;
+  margin-bottom:36px;
+}
+
+.chips{display:flex;gap:10px;flex-wrap:wrap}
+
+.chip{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:8px 18px;border-radius:999px;
+  font-size:.82rem;font-weight:600;letter-spacing:.02em;
+  border:1px solid var(--line);background:var(--panel);
+}
+.chip.marketing{color:var(--marketing);border-color:rgba(255,139,97,.28)}
+.chip.sales{color:var(--sales);border-color:rgba(155,134,255,.28)}
+.chip.business{color:var(--business);border-color:rgba(89,217,154,.28)}
+.chip::before{content:'';width:8px;height:8px;border-radius:50%;background:currentColor}
+
+/* ====== BROWSER ====== */
+.browser-scene{padding:36px 32px;place-items:start center}
+
+.browser-scene .scene-inner{
+  display:flex;flex-direction:column;
+  height:calc(100vh - 72px);gap:26px;
+}
+
+.browser-header h2{
+  font-size:clamp(1.6rem,3.6vw,2.8rem);
+  font-weight:800;letter-spacing:-.041em;
+  word-spacing:.025em;line-height:1;margin-bottom:6px;
+}
+.browser-header .muted{color:var(--faint);font-size:.9rem;line-height:1.5}
+
+.browser-body{
+  flex:1;display:grid;
+  grid-template-columns:340px 1fr;
+  gap:28px;min-height:0;
+}
+
+/* Sidebar */
+.sidebar{
+  overflow-y:auto;display:flex;flex-direction:column;
+  gap:5px;padding-right:6px;
+  scrollbar-width:thin;scrollbar-color:var(--faint) transparent;
+}
+.sidebar::-webkit-scrollbar{width:4px}
+.sidebar::-webkit-scrollbar-track{background:transparent}
+.sidebar::-webkit-scrollbar-thumb{background:var(--faint);border-radius:4px}
+
+.dept-label{
+  font-size:.66rem;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;padding:14px 12px 5px;color:var(--faint);
+}
+.dept-label:first-child{padding-top:2px}
+
+.agent-card{
+  display:grid;grid-template-columns:44px 1fr;
+  align-items:center;gap:14px;padding:13px 16px;
+  border-radius:14px;cursor:pointer;
+  border:1px solid transparent;
+  transition:background .2s,border-color .2s,box-shadow .2s;
+  user-select:none;
+}
+.agent-card:hover{background:var(--panel);border-color:var(--line)}
+.agent-card.active{background:var(--panel2);border-color:var(--line)}
+.agent-card.active.marketing{border-color:rgba(255,139,97,.38);box-shadow:0 0 20px rgba(255,139,97,.1)}
+.agent-card.active.sales{border-color:rgba(155,134,255,.38);box-shadow:0 0 20px rgba(155,134,255,.1)}
+.agent-card.active.business{border-color:rgba(89,217,154,.38);box-shadow:0 0 20px rgba(89,217,154,.1)}
+
+.agent-icon{
+  width:42px;height:42px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+}
+.agent-icon.marketing{background:rgba(255,139,97,.14);color:var(--marketing)}
+.agent-icon.sales{background:rgba(155,134,255,.14);color:var(--sales)}
+.agent-icon.business{background:rgba(89,217,154,.14);color:var(--business)}
+.agent-icon svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.agent-info{min-width:0}
+.agent-name{font-size:.88rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.agent-tags{font-size:.7rem;color:var(--faint);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px}
+
+/* Detail Panel */
+.detail-panel{
+  background:#11141d;border:1px solid var(--line);
+  border-radius:var(--radius);padding:48px 52px;
+  display:flex;flex-direction:column;gap:44px;
+  align-self:start;max-height:100%;
+  overflow-y:auto;box-shadow:var(--shadow);
+  transition:border-color .3s;
+}
+.detail-panel.marketing{border-color:rgba(255,139,97,.2);background:radial-gradient(130% 90% at 20% -12%,rgba(255,139,97,.12),transparent 58%),#11141d}
+.detail-panel.sales{border-color:rgba(155,134,255,.2);background:radial-gradient(130% 90% at 20% -12%,rgba(155,134,255,.12),transparent 58%),#11141d}
+.detail-panel.business{border-color:rgba(89,217,154,.2);background:radial-gradient(130% 90% at 20% -12%,rgba(89,217,154,.12),transparent 58%),#11141d}
+
+.detail-top{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:4px}
+
+.detail-title{
+  font-size:clamp(1.9rem,3.6vw,3rem);
+  font-weight:800;letter-spacing:-.042em;line-height:1.12;white-space:nowrap;
+}
+
+.detail-badge{
+  font-size:.66rem;font-weight:700;letter-spacing:.12em;
+  text-transform:uppercase;padding:8px 16px;
+  border-radius:999px;white-space:nowrap;flex-shrink:0;margin-top:6px;
+}
+.detail-badge.marketing{background:rgba(255,139,97,.1);color:var(--marketing);border:1px solid rgba(255,139,97,.28)}
+.detail-badge.sales{background:rgba(155,134,255,.1);color:var(--sales);border:1px solid rgba(155,134,255,.28)}
+.detail-badge.business{background:rgba(89,217,154,.1);color:var(--business);border:1px solid rgba(89,217,154,.28)}
+
+/* Three column spec cards — taller, softer, embedded */
+.detail-columns{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+
+.detail-col{display:flex;flex-direction:column;gap:14px}
+.detail-col-label{
+  font-size:.72rem;font-weight:700;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--faint);padding-left:2px;
+}
+.detail-col-box{
+  flex:1;
+  background:#0a0c13;
+  border:1px solid rgba(255,255,255,.06);
+  border-radius:16px;
+  padding:26px 24px;
+  min-height:185px;
+}
+.detail-col-text{font-size:.92rem;color:var(--muted);line-height:1.7}
+
+/* Flow row — its own contained block, pills spread full width */
+.detail-flow{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:12px;padding:4px 0;
+}
+.flow-node{
+  flex:1;text-align:center;
+  font-size:.78rem;font-weight:600;color:var(--muted);
+  padding:13px 16px;border:1px solid rgba(255,255,255,.07);
+  border-radius:12px;background:rgba(255,255,255,.025);white-space:nowrap;
+}
+.flow-arrow{flex-shrink:0;display:flex;align-items:center;color:var(--faint)}
+.flow-arrow svg{width:48px;height:12px;stroke:currentColor;fill:none;stroke-width:1.4;stroke-linecap:round;stroke-linejoin:round}
+.detail-panel.marketing .flow-arrow{color:var(--marketing)}
+.detail-panel.sales .flow-arrow{color:var(--sales)}
+.detail-panel.business .flow-arrow{color:var(--business)}
+
+/* Tagline — full-width box with left accent */
+.detail-tagline{
+  font-size:1.08rem;color:var(--text);
+  font-style:italic;font-family:var(--font-serif);
+  padding:20px 28px;
+  border:1px solid rgba(255,255,255,.06);border-left-width:3px;border-left-style:solid;
+  border-radius:14px;background:rgba(255,255,255,.018);
+  letter-spacing:-.01em;
+}
+.detail-tagline.marketing{border-left-color:var(--marketing);background:rgba(255,139,97,.055)}
+.detail-tagline.sales{border-left-color:var(--sales);background:rgba(155,134,255,.055)}
+.detail-tagline.business{border-left-color:var(--business);background:rgba(89,217,154,.055)}
+
+.detail-skills{display:flex;flex-wrap:wrap;gap:9px}
+.skill-chip{
+  font-size:.72rem;font-family:var(--font-mono);
+  padding:6px 14px;border-radius:999px;
+  border:1px solid var(--line);color:var(--faint);background:var(--bg2);
+}
+
+/* ====== CLOSE ====== */
+.close .scene-inner{text-align:left}
+
+.close h2{
+  font-size:clamp(2.4rem,5.5vw,4.8rem);
+  font-weight:800;letter-spacing:-.048em;line-height:.9;margin-bottom:22px;
+}
+.close p{
+  font-size:clamp(1rem,1.6vw,1.2rem);
+  color:var(--muted);max-width:520px;line-height:1.6;
+}
+
+/* Dots */
+.dots{
+  position:fixed;right:22px;top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:column;gap:10px;z-index:100;
+}
+.dot{
+  width:10px;height:10px;border-radius:50%;
+  background:var(--faint);opacity:.3;cursor:pointer;
+  transition:all .25s;border:none;padding:0;
+}
+.dot:hover{opacity:.6}
+.dot.active{opacity:1;background:var(--accent-1);box-shadow:0 0 12px rgba(255,139,97,.5)}
+
+/* Controls */
+.controls{
+  position:fixed;bottom:18px;right:22px;
+  display:flex;gap:6px;z-index:100;
+}
+.kbd{
+  font-size:.62rem;font-family:var(--font-mono);
+  padding:3px 7px;border-radius:5px;
+  background:var(--panel);border:1px solid var(--line);color:var(--faint);
+}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:22px;left:50%;
+  transform:translateX(-50%) translateY(80px);
+  background:var(--panel2);border:1px solid var(--line);
+  border-radius:12px;padding:10px 20px;
+  font-size:.85rem;color:var(--text);z-index:200;
+  opacity:0;transition:all .3s;pointer-events:none;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* Agent counter */
+.agent-counter{
+  position:absolute;bottom:12px;right:16px;
+  font-size:.72rem;color:var(--faint);font-family:var(--font-mono);
+}
+
+/* Fade animation */
+.fade-content{animation:fadeUp .32s ease both}
+@keyframes fadeUp{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* ====== RESPONSIVE ====== */
+@media(max-width:1100px){
+  .browser-body{grid-template-columns:280px 1fr}
+}
+
+@media(max-width:900px){
+  .scene{padding:28px 16px}
+  .browser-scene{padding:24px 16px}
+  .browser-scene .scene-inner{height:auto;min-height:calc(100vh - 48px);gap:14px}
+  .browser-body{
+    grid-template-columns:1fr;
+    grid-template-rows:auto 1fr;
+  }
+  .sidebar{
+    flex-direction:row;overflow-x:auto;overflow-y:hidden;
+    gap:6px;padding-right:0;padding-bottom:6px;
+    max-height:none;
+  }
+  .dept-label{
+    writing-mode:horizontal-tb;
+    padding:6px 10px;white-space:nowrap;
+    display:flex;align-items:center;
+  }
+  .agent-card{
+    flex-shrink:0;min-width:170px;
+    grid-template-columns:36px 1fr;padding:9px 11px;
+  }
+  .agent-icon{width:36px;height:36px;border-radius:10px}
+  .agent-icon svg{width:16px;height:16px}
+  .detail-panel{padding:22px 18px;gap:18px}
+  .detail-columns{grid-template-columns:1fr}
+  .detail-flow{gap:4px}
+  .flow-node{font-size:.68rem;padding:5px 10px}
+  .flow-arrow{padding:0 4px}
+  .flow-arrow svg{width:20px}
+  .dots,.controls{display:none}
+  .rail{left:20px;opacity:.1}
+  .deck{scroll-snap-type:y proximity}
+}
+
+@media(max-width:600px){
+  .detail-top{flex-direction:column;gap:8px}
+  .detail-title{white-space:normal}
+  .hero h1{font-size:clamp(2rem,11vw,3.6rem)}
+  .close h2{font-size:clamp(1.8rem,9vw,3rem)}
+  .browser-header h2{font-size:clamp(1.4rem,7vw,2.2rem)}
+}
+
+/* Reduced motion */
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+body.reduce-motion *,
+body.reduce-motion *::before,
+body.reduce-motion *::after{
+  animation:none!important;transition:none!important;
+}
+body.reduce-motion .deck{scroll-behavior:auto}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" aria-hidden="true">
+  <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><rect x="4" y="14" width="4" height="7" rx="1" fill="currentColor" opacity=".45" stroke="none"/><rect x="10" y="9" width="4" height="12" rx="1" fill="currentColor" opacity=".65" stroke="none"/><rect x="16" y="4" width="4" height="17" rx="1" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M17 3a2.83 2.83 0 114 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></symbol>
+  <symbol id="i-trending" viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></symbol>
+  <symbol id="i-dollar" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2" fill="none"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" fill="none"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+  <symbol id="i-pie" viewBox="0 0 24 24"><path d="M21.21 15.89A10 10 0 118 2.83"/><path d="M22 12A10 10 0 0012 2v10z"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 48 12"><line x1="0" y1="6" x2="46" y2="6"/><polyline points="40,2 46,6 40,10" fill="none"/></symbol>
+</svg>
+
+<div class="rail" aria-hidden="true"></div>
+<div class="dots" id="dots" aria-label="Presentation sections"></div>
+<div class="toast" id="toast"></div>
+
+<main class="deck" id="deck">
+
+  <!-- ====== HERO ====== -->
+  <section class="scene hero" data-title="Overview">
+    <div class="scene-inner">
+      <h1>15 Hermes Agent<br><em class="serif">Use Cases</em></h1>
+      <p class="tagline">15 AI employees Nemanja Mirkovic runs on Hermes Agent.</p>
+      <p class="subtitle">Each agent follows the same pattern: ingest sources, apply operating logic, deliver business outcomes. Scroll down to browse every role.</p>
+      <div class="chips">
+        <span class="chip marketing">4 Marketing</span>
+        <span class="chip sales">3 Sales</span>
+        <span class="chip business">8 Business</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== AGENT BROWSER ====== -->
+  <section class="scene browser-scene" data-title="Agent Browser">
+    <div class="scene-inner">
+      <div class="browser-header">
+        <h2>Click an employee. <em class="serif">See the job.</em></h2>
+        <p class="muted">Every use case follows the same operating pattern: inputs &rarr; processing &rarr; outputs &rarr; business outcome.</p>
+      </div>
+      <div class="browser-body">
+        <div class="sidebar" id="sidebar"></div>
+        <div class="detail-panel" id="detail" style="position:relative">
+          <div class="agent-counter" id="counter"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ====== CLOSE ====== -->
+  <section class="scene close" data-title="Next Steps">
+    <div class="scene-inner">
+      <h2>Find a bottleneck.<br><em class="serif">Let Hermes run it.</em></h2>
+      <p>Pick the employees that match your bottlenecks. Start with one. Scale to fifteen.</p>
+      <div class="chips" style="margin-top:28px">
+        <span class="chip marketing">Marketing</span>
+        <span class="chip sales">Sales</span>
+        <span class="chip business">Business Ops</span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="controls" aria-label="Keyboard shortcuts">
+  <span class="kbd">&uarr;&darr; agents</span>
+  <span class="kbd">F full</span>
+  <span class="kbd">M motion</span>
+</div>
+
+<script>
+(() => {
+  /* ====== AGENT DATA ====== */
+  const AGENTS = [
+    {id:'seo-analyst',name:'SEO Analyst',dept:'marketing',badge:'MARKETING EMPLOYEE',icon:'i-chart',
+     tags:'rankings · competitor scans · reports',
+     inputs:'Your Search Console, Ahrefs, and Semrush data, plus the competitors you want to beat.',
+     processing:'Scans the web and competitor APIs to find where your rankings can climb.',
+     outputs:'A plain-English SEO report — or the fix applied for you automatically.',
+     tagline:'Rank higher without watching the dashboards yourself.',
+     skills:['search-console','ahrefs','semrush','web-search']},
+
+    {id:'content-producer',name:'Content Producer',dept:'marketing',badge:'MARKETING EMPLOYEE',icon:'i-pen',
+     tags:'ideas · outlines · scripts · thumbnails',
+     inputs:'A blog post, a news link, or a topic you want to cover.',
+     processing:'Turns it into ideas, outlines, and full scripts — then sketches the thumbnails.',
+     outputs:'A complete content package, ready to film or publish.',
+     tagline:'From a single link to a finished content package.',
+     skills:['idea-packaging','outline-writing','script-writing','thumbnail-concepts']},
+
+    {id:'content-repurposing',name:'Content Repurposing',dept:'marketing',badge:'MARKETING EMPLOYEE',icon:'i-refresh',
+     tags:'newsletters · blogs · LinkedIn · X',
+     inputs:'One finished video or transcript.',
+     processing:'Pulls out the best moments and reshapes them for every channel.',
+     outputs:'Newsletters, blog posts, LinkedIn posts, and X threads from one source.',
+     tagline:'One video, every channel covered.',
+     skills:['transcript-extraction','multi-format-adaptation','newsletter','linkedin-posts']},
+
+    {id:'second-brain',name:'Second Brain',dept:'marketing',badge:'MARKETING EMPLOYEE',icon:'i-target',
+     tags:'knowledge base · NotebookLM · queries',
+     inputs:'Videos, books, and interviews from the thinkers and creators you follow.',
+     processing:'Files it all into a NotebookLM council you can question through Hermes.',
+     outputs:'A queryable knowledge base that answers in your favorite experts voices.',
+     tagline:'Everything you have learned, instantly searchable.',
+     skills:['notebooklm','knowledge-base','query-layer']},
+
+    {id:'lead-scraper',name:'Lead Scraper + Enrichment',dept:'sales',badge:'SALES EMPLOYEE',icon:'i-send',
+     tags:'scraping · enrichment · outreach',
+     inputs:'Your ideal customer profile and the companies you want to reach.',
+     processing:'Scrapes prospects, enriches them, and finds verified contact details.',
+     outputs:'A CSV of 2,000+ enriched leads, ready for email or LinkedIn outreach.',
+     tagline:'A full lead list built while you sleep.',
+     skills:['apify','firecrawl','serper','clay','anymail-finder','linkedin']},
+
+    {id:'sales-crm',name:'Sales CRM + Inbox Manager',dept:'sales',badge:'SALES EMPLOYEE',icon:'i-zap',
+     tags:'inbox triage · client notes · CRM',
+     inputs:'Your email inbox and HighLevel CRM.',
+     processing:'Triages your inbox, researches clients, and keeps every note up to date.',
+     outputs:'Client summaries, CRM updates, and reports on demand.',
+     tagline:'Your CRM stays current without the busywork.',
+     skills:['highlevel-crm','inbox-triage','client-research','note-creation']},
+
+    {id:'sales-call-analyst',name:'Sales Call Analyst',dept:'sales',badge:'SALES EMPLOYEE',icon:'i-mic',
+     tags:'transcripts · next steps · tasks',
+     inputs:'Your recorded sales calls, transcribed automatically.',
+     processing:'Reads each transcript and works out exactly what should happen next.',
+     outputs:'Next steps and tasks created right inside your CRM.',
+     tagline:'Every call ends with the follow-up already done.',
+     skills:['call-transcription','transcript-analysis','crm-task-creation']},
+
+    {id:'research-news',name:'Research / News Summary',dept:'business',badge:'BUSINESS EMPLOYEE',icon:'i-search',
+     tags:'trends · monitoring · daily digest',
+     inputs:'The topics you care about — AI, Claude, Codex, or anything else.',
+     processing:'Watches the sources daily and rates its own results so it gets sharper over time.',
+     outputs:'One daily message with what matters — no doom scrolling.',
+     tagline:'Stay current in one message a day.',
+     skills:['web-search','source-monitoring','self-improving','daily-digest']},
+
+    {id:'executive-assistant',name:'Executive Assistant',dept:'business',badge:'BUSINESS EMPLOYEE',icon:'i-calendar',
+     tags:'inbox · calendar · meeting notes',
+     inputs:'Your inbox, calendar, and task list.',
+     processing:'Triages messages, watches your schedule, and writes up your meeting notes.',
+     outputs:'Never a missed meeting — and notes taken for you.',
+     tagline:'Your calendar and inbox, finally under control.',
+     skills:['inbox-triage','calendar','meeting-notes','task-management']},
+
+    {id:'business-analyst',name:'Business Analyst / KPI',dept:'business',badge:'BUSINESS EMPLOYEE',icon:'i-pie',
+     tags:'KPIs · trends · monitoring',
+     inputs:'Your Excel sheets, dashboards, and APIs, connected via MCP or CLI.',
+     processing:'Monitors the numbers and surfaces the trends worth knowing about.',
+     outputs:'Reports on demand, plus continuous monitoring in the background.',
+     tagline:'KPIs watched for you, around the clock.',
+     skills:['mcp-connectors','cli-access','kpi-monitoring','trend-analysis']},
+
+    {id:'operations-employee',name:'Operations Employee',dept:'business',badge:'BUSINESS EMPLOYEE',icon:'i-settings',
+     tags:'recurring workflows · cron · checklists',
+     inputs:'Any recurring workflow or checklist you can describe.',
+     processing:'Runs it on a schedule with a cron job inside Hermes.',
+     outputs:'Routine operations handled automatically, every single time.',
+     tagline:'The employee that never forgets a process.',
+     skills:['cron-scheduling','workflow-automation','checklist-runner']},
+
+    {id:'customer-support',name:'Customer Support',dept:'business',badge:'BUSINESS EMPLOYEE',icon:'i-chat',
+     tags:'tickets · responses · escalation',
+     inputs:'Your support tickets or help desk.',
+     processing:'Watches the queue, drafts replies, and escalates the tricky ones.',
+     outputs:'Faster response times and tickets resolved automatically.',
+     tagline:'Support that keeps up without the headcount.',
+     skills:['ticket-monitoring','auto-response','escalation']},
+
+    {id:'shopify-assistant',name:'Shopify Assistant',dept:'business',badge:'BUSINESS EMPLOYEE',icon:'i-dollar',
+     tags:'orders · dashboards · reports',
+     inputs:'Your Shopify store, connected via API or MCP.',
+     processing:'Reads your dashboard and answers questions about orders and sales.',
+     outputs:'"How many orders today?" — answered without logging in.',
+     tagline:'Check your store without ever logging in.',
+     skills:['shopify-api','mcp-connector','order-queries','report-generation']},
+
+    {id:'investment-analyst',name:'Investment Analyst "Warren"',dept:'business',badge:'BUSINESS EMPLOYEE',icon:'i-trending',
+     tags:'stocks · earnings · portfolio',
+     inputs:'A list of stocks and the research sources you trust.',
+     processing:'Crawls those sources with Firecrawl and analyzes the earnings.',
+     outputs:'Investment summaries, advice, and ongoing portfolio tracking.',
+     tagline:'A research analyst for your portfolio, named Warren.',
+     skills:['firecrawl','data-aggregation','earnings-analysis','portfolio-tracking']},
+
+    {id:'advisory-council',name:'Advisory Council',dept:'business',badge:'BUSINESS EMPLOYEE',icon:'i-heart',
+     tags:'coaching · offers · synthesis',
+     inputs:'Talks and books from advisors like Tony Robbins and Alex Hormozi.',
+     processing:'Synthesizes their thinking across sources through a NotebookLM council.',
+     outputs:'Actionable coaching, offer optimization, and customer-proof angles.',
+     tagline:'A board of advisors on call, any time.',
+     skills:['notebooklm','cross-source-synthesis','claude-context-injection']}
+  ];
+
+  /* ====== DOM REFS ====== */
+  const sidebar = document.getElementById('sidebar');
+  const detail  = document.getElementById('detail');
+  const counter = document.getElementById('counter');
+  const deck    = document.getElementById('deck');
+  const dotsEl  = document.getElementById('dots');
+  let activeIdx = 0;
+
+  /* ====== BUILD SIDEBAR ====== */
+  function buildSidebar(){
+    let html = '';
+    let lastDept = '';
+    AGENTS.forEach((a, i) => {
+      if(a.dept !== lastDept){
+        const labels = {marketing:'Marketing',sales:'Sales',business:'Business'};
+        html += '<div class="dept-label">' + labels[a.dept] + '</div>';
+        lastDept = a.dept;
+      }
+      html += '<div class="agent-card ' + a.dept + (i===0?' active':'') + '" data-idx="' + i + '">'
+        + '<div class="agent-icon ' + a.dept + '"><svg><use href="#' + a.icon + '"/></svg></div>'
+        + '<div class="agent-info">'
+        + '<div class="agent-name">' + a.name + '</div>'
+        + '<div class="agent-tags">' + a.tags + '</div>'
+        + '</div></div>';
+    });
+    sidebar.innerHTML = html;
+    sidebar.querySelectorAll('.agent-card').forEach(function(card){
+      card.addEventListener('click', function(){
+        setActive(parseInt(card.dataset.idx));
+      });
+    });
+  }
+
+  /* ====== RENDER DETAIL ====== */
+  function renderDetail(a, idx){
+    var skillsHtml = '';
+    if(a.skills.length > 0){
+      skillsHtml = '<div class="detail-skills">'
+        + a.skills.map(function(s){ return '<span class="skill-chip">' + s + '</span>'; }).join('')
+        + '</div>';
+    }
+
+    detail.className = 'detail-panel ' + a.dept;
+    detail.innerHTML = '<div class="fade-content">'
+      + '<div class="detail-top">'
+      + '<div class="detail-title">' + a.name + '</div>'
+      + '<div class="detail-badge ' + a.dept + '">' + a.badge + '</div>'
+      + '</div>'
+      + '<div class="detail-columns">'
+      + '<div class="detail-col"><div class="detail-col-label">Inputs</div><div class="detail-col-box"><div class="detail-col-text">' + a.inputs + '</div></div></div>'
+      + '<div class="detail-col"><div class="detail-col-label">Processing</div><div class="detail-col-box"><div class="detail-col-text">' + a.processing + '</div></div></div>'
+      + '<div class="detail-col"><div class="detail-col-label">Outputs</div><div class="detail-col-box"><div class="detail-col-text">' + a.outputs + '</div></div></div>'
+      + '</div>'
+      + '<div class="detail-flow">'
+      + '<span class="flow-node">ingest sources</span>'
+      + '<span class="flow-arrow"><svg><use href="#i-arrow"/></svg></span>'
+      + '<span class="flow-node">agent operating logic</span>'
+      + '<span class="flow-arrow"><svg><use href="#i-arrow"/></svg></span>'
+      + '<span class="flow-node">business outcome</span>'
+      + '</div>'
+      + '<div class="detail-tagline ' + a.dept + '">' + a.tagline + '</div>'
+      + skillsHtml
+      + '</div>'
+      + '<div class="agent-counter">' + (idx + 1) + ' / ' + AGENTS.length + '</div>';
+  }
+
+  /* ====== SET ACTIVE ====== */
+  function setActive(idx){
+    activeIdx = idx;
+    sidebar.querySelectorAll('.agent-card').forEach(function(c, i){
+      c.classList.toggle('active', i === idx);
+    });
+    renderDetail(AGENTS[idx], idx);
+    var activeCard = sidebar.querySelector('.agent-card.active');
+    if(activeCard) activeCard.scrollIntoView({block:'nearest',behavior:'smooth'});
+  }
+
+  /* ====== DOTS ====== */
+  var scenes = document.querySelectorAll('.scene');
+  scenes.forEach(function(s, i){
+    var d = document.createElement('button');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.setAttribute('aria-label', s.dataset.title || 'Section ' + (i+1));
+    d.addEventListener('click', function(){ s.scrollIntoView({behavior:'smooth'}); });
+    dotsEl.appendChild(d);
+  });
+
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){
+        var idx = Array.prototype.indexOf.call(scenes, e.target);
+        dotsEl.querySelectorAll('.dot').forEach(function(d, i){
+          d.classList.toggle('active', i === idx);
+        });
+      }
+    });
+  }, {root:deck, threshold:0.5});
+  scenes.forEach(function(s){ obs.observe(s); });
+
+  /* ====== KEYBOARD ====== */
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'f' || e.key === 'F'){
+      if(!document.fullscreenElement) document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+      else document.exitFullscreen && document.exitFullscreen();
+      return;
+    }
+    if(e.key === 'm' || e.key === 'M'){
+      document.body.classList.toggle('reduce-motion');
+      showToast(document.body.classList.contains('reduce-motion') ? 'Motion reduced' : 'Motion enabled');
+      return;
+    }
+    if(e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown'){
+      var bs = document.querySelector('.browser-scene');
+      var r = bs.getBoundingClientRect();
+      if(r.top < 100 && r.bottom > 100){
+        if(activeIdx < AGENTS.length - 1){ e.preventDefault(); setActive(activeIdx + 1); return; }
+      }
+    }
+    if(e.key === 'ArrowUp' || e.key === 'PageUp'){
+      var bs2 = document.querySelector('.browser-scene');
+      var r2 = bs2.getBoundingClientRect();
+      if(r2.top < 100 && r2.bottom > 100){
+        if(activeIdx > 0){ e.preventDefault(); setActive(activeIdx - 1); return; }
+      }
+    }
+  });
+
+  /* ====== TOAST ====== */
+  var toastTimer;
+  function showToast(msg){
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.classList.remove('show'); }, 1800);
+  }
+
+  /* ====== INIT ====== */
+  buildSidebar();
+  renderDetail(AGENTS[0], 0);
+})();
+</script>
+</body>
+</html>
