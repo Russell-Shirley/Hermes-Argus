@@ -6,11 +6,14 @@ This is the **Layer 1 routing document** (MWP protocol). It maps user requests a
 
 ## Three Operational Lanes
 
-The repo organizes skills into **three lanes** matching how Bridge and Bolt operates:
+The repo organizes skills into **three physical lanes** — `skills/<lane>/<domain>/<skill>/SKILL.md` —
+matching how Bridge and Bolt operates (canonical: `ai-factory` ADR-0003 / `_config/lane-conventions.md`).
+Note: the Hermes runtime store (`~/.hermes/skills/`) is **flat by skill name**; the lane/domain
+folders are organizational only and do not change runtime layout.
 
 ### 🏗️ Lane 1: Development
 *Who:* Engineering agents, infrastructure, build tooling
-*Domains:* `architecture/` • `ops/` • `content/`
+*Domains:* `development/architecture/` • `development/ops/` • `development/content/`
 *What:* System design, deployment patterns, monitoring, backup/recovery, browser automation, vision processing, design patterns
 
 | Request type | Domain | First skill to check |
@@ -28,7 +31,7 @@ The repo organizes skills into **three lanes** matching how Bridge and Bolt oper
 
 ### 🤝 Lane 2: Client Services
 *Who:* Client-facing agents, onboarding flows
-*Domains:* `clients/`
+*Domains:* `client-services/clients/`
 *What:* Outreach workflows, CRM updates, onboarding playbooks, communication drafting
 
 | Request type | Skill / Context |
@@ -38,7 +41,7 @@ The repo organizes skills into **three lanes** matching how Bridge and Bolt oper
 
 ### 🏢 Lane 3: Business / Internal
 *Who:* Strategy agents, board materials, internal operations
-*Domains:* `business/`
+*Domains:* `business-internal/business/`
 *What:* Revenue strategy, competitive research, agent framework comparisons, presentations
 
 | Request type | Domain | First skill to check |

@@ -43,9 +43,11 @@ This repo organizes all skills into **three operational lanes**:
 
 | Lane | Domains | Used By |
 |------|---------|---------|
-| 🏗️ **Development** | `architecture/`, `ops/`, `content/` | Engineering agents, infrastructure |
-| 🤝 **Client Services** | `clients/` | Client-facing agents, onboarding |
-| 🏢 **Business/Internal** | `business/` | Strategy agents, board materials |
+| 🏗️ **Development** | `development/{architecture,ops,content}/` | Engineering agents, infrastructure |
+| 🤝 **Client Services** | `client-services/clients/` | Client-facing agents, onboarding |
+| 🏢 **Business/Internal** | `business-internal/business/` | Strategy agents, board materials |
+
+Lanes are **physical** folders (`skills/<lane>/<domain>/<skill>/SKILL.md`), per the portfolio canonical standard (`ai-factory` ADR-0003). The Hermes runtime store (`~/.hermes/skills/`) remains flat by skill name.
 
 For routing a request to the right lane, see `CONTEXT.md` at repo root (Layer 1 routing).
 
@@ -58,33 +60,34 @@ Hermes-Argus/
 ├── config/                    # Hermes config (hermes.yaml) + per-agent profiles + cron jobs
 ├── _config/                   # Layer 3 — shared reference material (cross-domain conventions)
 │   └── lane-conventions.md    # Frontmatter template, naming, file path rules
-├── skills/                    # Skill directories organized by domain
-│   ├── architecture/          # 🏗️ Development lane — system design, memory stacks
-│   │   ├── _context.md
-│   │   ├── autonomous-memory-stack/SKILL.md
-│   │   ├── local-postgres-to-supabase-migration/SKILL.md
-│   │   └── ollama-jit-vision-model/SKILL.md
-│   ├── ops/                   # 🏗️ Development lane — infra, backup, automation
-│   │   ├── _context.md
-│   │   ├── argus-disaster-recovery/SKILL.md
-│   │   ├── argus-slack-emoji-protocol/SKILL.md
-│   │   ├── gmail-api-integration/SKILL.md
-│   │   └── puppeteer-web-browsing/SKILL.md
-│   ├── content/               # 🏗️ Development lane — vision, design, product vision
-│   │   ├── _context.md
-│   │   ├── vision-analysis/SKILL.md
-│   │   ├── ui-design-models/SKILL.md
-│   │   └── water-safety-app-vision/SKILL.md
-│   │       └── references/
-│   ├── business/              # 🏢 Business/Internal lane — strategy, research, presentations
-│   │   ├── _context.md
-│   │   ├── ai-smb-consulting-quick-cash-strategy/SKILL.md
-│   │   ├── cinematic-html-presentation/SKILL.md
-│   │   │   └── references/
-│   │   ├── multi-agent-orchestration-framework/SKILL.md
-│   │   └── workmate-agent-framework/SKILL.md
-│   └── clients/               # 🤝 Client Services lane — outreach, onboarding
-│       └── _context.md        # (skills pending)
+├── skills/                    # skills/<lane>/<domain>/<skill-name>/SKILL.md
+│   ├── development/           # 🏗️ Development lane
+│   │   ├── architecture/      # system design, memory stacks
+│   │   │   ├── _context.md
+│   │   │   ├── autonomous-memory-stack/SKILL.md
+│   │   │   ├── local-postgres-to-supabase-migration/SKILL.md
+│   │   │   └── ollama-jit-vision-model/SKILL.md
+│   │   ├── ops/               # infra, backup, automation
+│   │   │   ├── _context.md
+│   │   │   ├── argus-disaster-recovery/SKILL.md
+│   │   │   ├── argus-slack-emoji-protocol/SKILL.md
+│   │   │   ├── gmail-api-integration/SKILL.md
+│   │   │   └── puppeteer-web-browsing/SKILL.md
+│   │   └── content/           # vision, design, product vision
+│   │       ├── _context.md
+│   │       ├── vision-analysis/SKILL.md
+│   │       ├── ui-design-models/SKILL.md
+│   │       └── water-safety-app-vision/SKILL.md (+ references/)
+│   ├── business-internal/     # 🏢 Business/Internal lane
+│   │   └── business/          # strategy, research, presentations
+│   │       ├── _context.md
+│   │       ├── ai-smb-consulting-quick-cash-strategy/SKILL.md
+│   │       ├── cinematic-html-presentation/SKILL.md (+ references/)
+│   │       ├── multi-agent-orchestration-framework/SKILL.md
+│   │       └── workmate-agent-framework/SKILL.md
+│   └── client-services/       # 🤝 Client Services lane
+│       └── clients/           # outreach, onboarding (skills pending)
+│           └── _context.md
 ├── modules/                   # Deployment modules (icm_base + business-domain modules)
 ├── schema/                    # PostgreSQL DDL (business.sql)
 ├── templates/                 # Document templates (e.g. collection letters)
