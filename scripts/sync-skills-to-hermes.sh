@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # sync-skills-to-hermes.sh
-# 
+#
 # Bridge: Sync skills from Hermes-Argus/skills/ (product catalog)
 # to ~/.hermes/skills/ (Hermes runtime store).
 #
-# Each skill in Hermes-Argus/skills/ is a SKILL.md file in Hermes format
-# (YAML frontmatter + markdown body). This script copies them into
-# ~/.hermes/skills/<skill-name>/SKILL.md for runtime loading.
+# Each skill is a SKILL.md file at skills/<lane>/<domain>/<skill-name>/SKILL.md
+# (ICM three-lane layout). This script copies each into
+# ~/.hermes/skills/<skill-name>/SKILL.md for runtime loading. The runtime store
+# is FLAT by skill name — the repo's lane/domain folders are organizational only
+# and do not change the runtime layout.
 #
-# Usage: 
+# Usage:
 #   ./sync-skills-to-hermes.sh           # sync all skills
 #   ./sync-skills-to-hermes.sh dry-run   # preview without copying
 #   ./sync-skills-to-hermes.sh list      # list what would be synced
@@ -20,16 +22,25 @@ SKILLS_SRC="$REPO_ROOT/skills"
 HERMES_SKILLS="$HOME/.hermes/skills"
 DRY_RUN=false
 
+# Derive the runtime skill name from a SKILL.md path: the skill is the SKILL.md's
+# parent directory name (lane/domain depth-agnostic). Sanitize for the runtime store.
+skill_name_from() {
+  local src="$1"
+  local dir; dir="$(basename "$(dirname "$src")")"
+  echo "$dir" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g; s/(//g; s/)//g; s/--/-/g; s/-$//'
+}
+
 if [ "${1:-}" = "dry-run" ]; then
   DRY_RUN=true
 elif [ "${1:-}" = "list" ]; then
   echo "Skills in $SKILLS_SRC (product catalog):"
   echo "---"
-  find "$SKILLS_SRC" -name "*.md" ! -name "_context.md" | sort | while read -r f; do
+  find "$SKILLS_SRC" -name "SKILL.md" | sort | while read -r f; do
     rel="${f#$SKILLS_SRC/}"
-    category="$(dirname "$rel")"
-    skill="$(basename "$rel" .md)"
-    echo "  [${category%/}] ${skill}"
+    skilldir="$(dirname "$rel")"          # <lane>/<domain>/<skill-name>
+    skill="$(basename "$skilldir")"       # <skill-name>
+    category="$(dirname "$skilldir")"     # <lane>/<domain>
+    echo "  [${category}] ${skill}"
   done
   exit 0
 fi
@@ -42,15 +53,8 @@ echo ""
 SYNCED=0
 SKIPPED=0
 
-find "$SKILLS_SRC" -name "*.md" ! -name "_context.md" | sort | while read -r src; do
-  rel="${src#$SKILLS_SRC/}"
-  category="$(dirname "$rel")"
-  # Remove category prefix for skill name — use filename only
-  basename_file="$(basename "$src")"
-  skill_name="${basename_file%.md}"
-  
-  # Sanitize: lowercase, replace spaces with hyphens, strip parens
-  sanitized="$(echo "$skill_name" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g; s/(//g; s/)//g; s/--/-/g; s/-$//')"
+find "$SKILLS_SRC" -name "SKILL.md" | sort | while read -r src; do
+  sanitized="$(skill_name_from "$src")"
   target_dir="$HERMES_SKILLS/$sanitized"
   target_file="$target_dir/SKILL.md"
 
@@ -62,7 +66,7 @@ find "$SKILLS_SRC" -name "*.md" ! -name "_context.md" | sort | while read -r src
   fi
 
   if [ "$DRY_RUN" = true ]; then
-    echo "  [DRY-RUN] Would copy: $rel -> $target_file"
+    echo "  [DRY-RUN] Would copy: ${src#$SKILLS_SRC/} -> $target_file"
   else
     mkdir -p "$target_dir"
     cp "$src" "$target_file"
@@ -82,11 +86,8 @@ if [ "$DRY_RUN" = false ]; then
       continue  # bundled category, skip
     fi
     # Check if this skill exists in the repo
-    repo_match=$(find "$SKILLS_SRC" -name "*.md" ! -name "_context.md" | while read -r f; do
-      basename_file="$(basename "$f")"
-      skill_name="${basename_file%.md}"
-      sanitized="$(echo "$skill_name" | tr '[:upper:]' '[:lower:]' | sed 's/ /-/g; s/(//g; s/)//g; s/--/-/g; s/-$//')"
-      if [ "$sanitized" = "$dname" ]; then echo "$dname"; fi
+    repo_match=$(find "$SKILLS_SRC" -name "SKILL.md" | while read -r f; do
+      if [ "$(skill_name_from "$f")" = "$dname" ]; then echo "$dname"; fi
     done)
     if [ -z "$repo_match" ]; then
       echo "  [ORPHAN] ~/.hermes/skills/$dname/ has no matching source in repo"
