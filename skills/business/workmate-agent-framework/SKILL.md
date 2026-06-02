@@ -1,8 +1,8 @@
 ---
 name: workmate-agent-framework
-description: |
-  Reference for Workmate — a competitive agent framework for building on-prem agents.
-  Source documentation link for competitive analysis.
+description: |-
+  Reference for Workmate — an on-prem agent deployment framework for enterprises.
+  Covers competitive comparison with Multica and architectural considerations.
   DO NOT use for: implementation, deployment, or integration decisions.
 category: business
 domain: research
@@ -32,18 +32,22 @@ compatibility:
 deprecated: false
 deprecation_notes: ""
 examples:
-  - "Researching on-prem agent deployment options"
-  - "Comparing Workmate vs Multica for client use case"
+  - "Researching on-prem agent deployment for an enterprise client"
+  - "Comparing Workmate vs Multica for a regulated industry deployment"
 ---
-# Workmate — Competitive Agent Framework
+
+# Workmate Agent Framework
 
 ## Overview
-A framework for openclaw that enables building on-prem agents for end users.
+Workmate is an on-prem agent deployment framework for enterprise use cases.
+Unlike Multica (dev-managed orchestration), Workmate is designed for self-hosted,
+air-gapped, or regulated environments where cloud dependency is not acceptable.
 
 ## Key Features
 - On-prem deployment
-- End-user agent building
-- Openclaw integration
+- Air-gapped operation
+- Regulated environment support
+- Enterprise security controls
 
 ## Comparison with Multica
 See `multi-agent-orchestration-framework` for the parallel reference.

@@ -37,20 +37,61 @@ Before making changes, read existing files, understand the project structure, an
 respect current architecture. DO NOT rewrite entire codebases unnecessarily or
 introduce breaking changes without reason.
 
+## Three-Lane Architecture
+
+This repo organizes all skills into **three operational lanes**:
+
+| Lane | Domains | Used By |
+|------|---------|---------|
+| 🏗️ **Development** | `architecture/`, `ops/`, `content/` | Engineering agents, infrastructure |
+| 🤝 **Client Services** | `clients/` | Client-facing agents, onboarding |
+| 🏢 **Business/Internal** | `business/` | Strategy agents, board materials |
+
+For routing a request to the right lane, see `CONTEXT.md` at repo root (Layer 1 routing).
+
 ## Project Structure
 
 ```
 Hermes-Argus/
-├── config/                  # Hermes config (hermes.yaml) + per-agent profiles + cron jobs
-├── modules/                 # ICM (Instruction-Conditioned Memory) skill modules
-│   ├── icm_base/            # Core module — required for every deployment
-│   └── <domain>/            # Business-domain modules (SKILL.md per module)
-├── schema/                  # PostgreSQL DDL (business.sql)
-├── templates/               # Document templates (e.g. collection letters)
-├── cognee-server/           # Graph memory sidecar (Python/FastAPI, Dockerized)
-├── google-tools/            # Google Workspace MCP server (Python, uv-managed)
-├── deploy/                  # Per-org provisioning scripts
-└── docs/                    # Phase runbooks + architecture specs
+├── CONTEXT.md                 # Layer 1 — task routing by lane
+├── AGENTS.md                  # Layer 0 — identity and rules (this file)
+├── config/                    # Hermes config (hermes.yaml) + per-agent profiles + cron jobs
+├── _config/                   # Layer 3 — shared reference material (cross-domain conventions)
+│   └── lane-conventions.md    # Frontmatter template, naming, file path rules
+├── skills/                    # Skill directories organized by domain
+│   ├── architecture/          # 🏗️ Development lane — system design, memory stacks
+│   │   ├── _context.md
+│   │   ├── autonomous-memory-stack/SKILL.md
+│   │   ├── local-postgres-to-supabase-migration/SKILL.md
+│   │   └── ollama-jit-vision-model/SKILL.md
+│   ├── ops/                   # 🏗️ Development lane — infra, backup, automation
+│   │   ├── _context.md
+│   │   ├── argus-disaster-recovery/SKILL.md
+│   │   ├── argus-slack-emoji-protocol/SKILL.md
+│   │   ├── gmail-api-integration/SKILL.md
+│   │   └── puppeteer-web-browsing/SKILL.md
+│   ├── content/               # 🏗️ Development lane — vision, design, product vision
+│   │   ├── _context.md
+│   │   ├── vision-analysis/SKILL.md
+│   │   ├── ui-design-models/SKILL.md
+│   │   └── water-safety-app-vision/SKILL.md
+│   │       └── references/
+│   ├── business/              # 🏢 Business/Internal lane — strategy, research, presentations
+│   │   ├── _context.md
+│   │   ├── ai-smb-consulting-quick-cash-strategy/SKILL.md
+│   │   ├── cinematic-html-presentation/SKILL.md
+│   │   │   └── references/
+│   │   ├── multi-agent-orchestration-framework/SKILL.md
+│   │   └── workmate-agent-framework/SKILL.md
+│   └── clients/               # 🤝 Client Services lane — outreach, onboarding
+│       └── _context.md        # (skills pending)
+├── modules/                   # Deployment modules (icm_base + business-domain modules)
+├── schema/                    # PostgreSQL DDL (business.sql)
+├── templates/                 # Document templates (e.g. collection letters)
+├── cognee-server/             # Graph memory sidecar (Python/FastAPI, Dockerized)
+├── google-tools/              # Google Workspace MCP server (Python, uv-managed)
+├── deploy/                    # Per-org provisioning scripts
+└── docs/                      # Phase runbooks + architecture specs
 ```
 
 ## Tech Stack
@@ -66,12 +107,12 @@ Hermes-Argus/
 
 ## Architecture Guidelines
 
-**ICM Skill Modules** (`modules/`)
-- Each module is a self-contained directory with a `SKILL.md` file
-- `SKILL.md` must follow ICM conventions: YAML frontmatter (name, description,
-  trigger_phrases) followed by workflow steps, pitfalls, and verification
-- All modules require `icm_base` as a dependency
+**Skill Modules** (`skills/<category>/<name>/SKILL.md`)
+- Every skill is a self-contained directory with a `SKILL.md` file
+- `SKILL.md` uses lowercase-hyphens YAML frontmatter with `name/description/category/domain/intent/phase/scope/data_access/governed_by/version/compatibility/examples`
 - Domain context files (`_context.md`) define rules shared across a domain
+- Reference material lives in `references/` alongside the skill
+- See `_config/lane-conventions.md` for the full frontmatter template
 
 **Configuration** (`config/`)
 - `hermes.yaml` is the master configuration template
@@ -95,6 +136,7 @@ Hermes-Argus/
 - Create new files only when necessary
 - Update existing files instead of duplicating logic
 - Keep file structure organized — place related files in their domain directory
+- All skill files go in `skills/<category>/<skill-name>/SKILL.md` — no flat `.md` files at the category level
 
 ## Security Best Practices
 
@@ -128,7 +170,7 @@ When given a task:
 
 ## State Management
 
-- After completing any significant task, update `CURRENT_STATE.md` at the project root
+- After completing any significant task, update `CURRENT-STATE.md` at the project root
 - Structure: Completed / In Progress / Known Issues / Next Up
 - Overwrite the file — do not append
 
@@ -137,10 +179,12 @@ When given a task:
 Use project files as long-term memory:
 - `README.md` → project overview
 - `AGENTS.md` → rules (this file)
-- `CURRENT_STATE.md` → status of project
+- `CONTEXT.md` → lane routing (Layer 1)
+- `CURRENT-STATE.md` → status of project
 - `docs/` → detailed documentation and runbooks
 - `config/hermes.yaml` → agent configuration
 - `modules/icm_base/` → universal agent knowledge base
+- `_config/` → shared conventions and standards
 
 ## What to Avoid
 

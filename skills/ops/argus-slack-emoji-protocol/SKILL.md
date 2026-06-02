@@ -1,0 +1,1 @@
+cat: /mnt/c/Users/Russell/Documents/GitHub/Hermes-Argus/skills/ops/argus-slack-emoji-protocol.md: No such file or directory
