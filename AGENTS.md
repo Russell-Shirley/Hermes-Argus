@@ -11,6 +11,19 @@ appliances for SMBs. Always prioritize:
 - Maintainability
 - Performance
 
+## Session start — ICM routing (do this first)
+
+This repo uses the ICM three-lane structure (canonical: `ai-factory` ADR-0003). Before acting
+on any task:
+
+1. **Read [`CONTEXT.md`](CONTEXT.md)** (MWP Layer 1) and route **top-down**:
+   request → **lane** (`development` / `client-services` / `business-internal`) → **domain** → skill.
+2. **Open the matching `skills/<lane>/<domain>/<skill>/SKILL.md`** and follow it. (The Hermes
+   runtime store `~/.hermes/skills/` is flat by skill name — the lane/domain folders are
+   organizational only.)
+
+See the Three-Lane Architecture section below for the lane → domain map.
+
 ## Git Workflow
 
 **Always use feature branches. Never commit directly to `master`.**
