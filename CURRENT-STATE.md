@@ -18,12 +18,12 @@
 
 | Component | Status |
 |-----------|--------|
-| Gateway | PID 30316, `running`, Slack `connected` |
-| Watchdog (Task Scheduler) | **Running** — auto-restarts gateway at logon |
-| Postgres (argus-openbrain) | Healthy — port 5432 |
-| Cognee Server | Running — port 8000 |
-| Hindsight Postgres (pg0) | Healthy — port 15432 (PID 39292) |
-| Hindsight Task Scheduler | **Running** — `HermesHindsightStart` auto-starts on logon + wake |
+| Gateway | `running` (Hermes.exe processes confirmed live); PID in this doc is stale/unverified — do not trust a specific PID number without re-checking `Get-Process Hermes` |
+| Watchdog (Task Scheduler) | **Running** — auto-restarts gateway at logon (confirmed via `Get-ScheduledTask`) |
+| Postgres (argus-openbrain) | Healthy — port 5432 (confirmed via `docker ps`) |
+| Cognee Server | Running — port 8000 (confirmed via `docker ps`) |
+| Hindsight Postgres (pg0) | Healthy — port 15432; PID in this doc is stale/unverified — confirmed listening PID via `netstat` was 12780, not 39292, at last check |
+| Hindsight Task Scheduler | **Running** — `HermesHindsightStart` auto-starts on logon + wake (confirmed via `Get-ScheduledTask`) |
 
 ## Architecture
 
@@ -37,7 +37,7 @@ Hermes Runtime (WSL2 ~/.hermes/)
 
 Docker Stack (docker-compose.yml)
   ├── argus-openbrain      — Postgres 17 (OpenBrain structured data)
-  │   ├── schema: invoices, contacts, outstanding_invoices, ar_invoices_aging
+  │   ├── schema: ar_invoices, customers, ar_invoices_aging (view), meeting_notes, sales_recordings — confirmed via `\dt`/`\dv` (previous version of this doc named non-existent tables `invoices`/`contacts`/`outstanding_invoices`)
   │   └── backup_jobs table for observability
   └── cognee-server        — Knowledge graph + vector memory (MCP-wrapped)
         ├── MCP: memorize, query
@@ -106,8 +106,8 @@ The D: drive backup is the canonical, running backup system.
 
 | Job | Profile | Schedule | Deliver | Status |
 |-----|---------|----------|---------|--------|
-| `ar_daily_check` | ar_watcher | Weekdays 8am | Slack #biz-bridgeandbolt | ✅ Running |
-| `outreach_daily` | outreach_agent | Weekdays 9am | Slack #biz-bridgeandbolt | ✅ Running |
+| `ar_daily_check` | ar_watcher | Weekdays 8am | Slack #biz-bridgeandbolt | Configured in `config/profiles/ar_watcher.yaml` (confirmed). "Running" reflects actual Slack delivery inside the Hermes gateway's cron scheduler, which is not independently verifiable from outside the running process/logs — treat as unconfirmed. |
+| `outreach_daily` | outreach_agent | Weekdays 9am | Slack #biz-bridgeandbolt | Configured in `config/profiles/outreach_agent.yaml` (confirmed). Same caveat — actual execution/delivery not independently verifiable here. |
 
 ## Known Issues
 
@@ -127,11 +127,12 @@ Two dedicated tables created in OpenBrain Postgres (argus-openbrain container):
 | 📋 Meeting Notes | `meeting_notes` | Transcripts, summaries, participants, projects |
 | 🎧 Sales Call Recordings | `sales_recordings` | Audio file refs, call outcomes, prospect tracking |
 
-**Schema file:** `schema/openbrain-meetings.sql` — idempotent DDL with `CREATE TABLE IF NOT EXISTS`.
-**Helper functions:** `upsert_meeting_note()` and `upsert_sales_recording()` — returns UUID on insert.
-**Auto-updated_at triggers:** ✅ Shared `update_updated_at_column()` function + `BEFORE UPDATE` triggers on both tables (verified).
-**OB1 metadata.json:** ✅ `schema/openbrain-meetings-sales/metadata.json` — version 1.0.0, category: extensions.
-**Deno MCP server:** ✅ `schema/openbrain-meetings-sales/index.ts` + `deno.json` — 6 MCP tools (`save_meeting_note`, `save_sales_recording`, `query_meetings`, `query_sales_recordings`, `get_meeting_stats`, `get_sales_pipeline`) for Claude/Cursor stdio integration. Compiles clean on Deno 2.9.1.
+**Schema file:** `schema/openbrain-meetings.sql` — idempotent DDL with `CREATE TABLE IF NOT EXISTS` (base tables). Semantic-search columns/indexes/RPCs were added by a follow-up migration, `schema/openbrain-pgvector-upgrade.sql`.
+**Helper functions:** `upsert_meeting_note()` and `upsert_sales_recording()` — returns UUID on insert. ✅ Confirmed present in DB (real ON CONFLICT upserts on natural keys `(topic, meeting_date)` / `(prospect_name, call_date)`).
+**Semantic search:** ✅ `vector` extension 0.8.4 installed. Both tables have `embedding vector(768)` + HNSW (`vector_cosine_ops`) index, and generated `search_vector` tsvector + GIN index. RPCs confirmed present in DB: `search_meetings_semantic(query_embedding, match_count)` and `search_sales_semantic(query_embedding, match_count)` — **note the second one is named `search_sales_semantic`, not `search_sales_recordings`.**
+**Auto-updated_at triggers:** ✅ Shared `update_updated_at_column()` function + `BEFORE UPDATE` triggers on both tables (confirmed via `information_schema.triggers`).
+**OB1 metadata.json:** ✅ `schema/openbrain-meetings-sales/metadata.json` exists — version 1.0.0, category: extensions.
+**Deno MCP server:** ✅ `schema/openbrain-meetings-sales/index.ts` + `deno.json` exist and define 6 MCP tools (`save_meeting_note`, `save_sales_recording`, `query_meetings`, `query_sales_recordings`, `get_meeting_stats`, `get_sales_pipeline`) for Claude/Cursor stdio integration; `index.ts` correctly calls `search_sales_semantic`/`search_meetings_semantic`. ⚠️ **Unverified:** "Compiles clean on Deno 2.9.1" — Deno is not installed in this environment, so this build claim could not be re-checked and is stated on trust from the original author.
 **Skill:** `openbrain-meetings-sales` v2.0.0 — full docs for SQL + MCP usage, Claude/Cursor config instructions.
 
 ## Future / Deferred
