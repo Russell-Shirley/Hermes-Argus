@@ -4,8 +4,8 @@
 > Read at session start. Update on significant changes.
 
 ## Last Updated
-- **Date:** 2026-06-01
-- **By:** Hermes Agent (Skill folder standardization — three-lane structure)
+- **Date:** 2026-07-02
+- **By:** Hermes Agent (Open Brain — two new schema areas: meeting_notes + sales_recordings)
 
 ## Identity
 - **Agent name:** Argus Panoptes ("Argus")
@@ -114,9 +114,25 @@ The D: drive backup is the canonical, running backup system.
 | Issue | Detail | Status |
 |-------|--------|--------|
 | Cognee MCP memorize | Memorize calls return `Error executing tool` despite both containers healthy | 🔍 Investigating |
-| Hermes memory tool | At capacity (2,154/2,200 chars) | Needs trimming |
+| Hermes memory tool | At capacity (2,031/2,200 chars) | Needs trimming |
 | Cognee DeepSeek adapter | Prior issue with JSON parsing on v4-flash | 🔍 May be resolved |
 | Skill registration | TIRITH blocked `skill_manage` for DR skill due to config/secrets references | ⚠️ Workaround: raw file write |
+
+## Open Brain — Two New Schema Areas (2026-07-02)
+
+Two dedicated tables created in OpenBrain Postgres (argus-openbrain container):
+
+| Section | Table | Purpose |
+|---------|-------|---------|
+| 📋 Meeting Notes | `meeting_notes` | Transcripts, summaries, participants, projects |
+| 🎧 Sales Call Recordings | `sales_recordings` | Audio file refs, call outcomes, prospect tracking |
+
+**Schema file:** `schema/openbrain-meetings.sql` — idempotent DDL with `CREATE TABLE IF NOT EXISTS`.
+**Helper functions:** `upsert_meeting_note()` and `upsert_sales_recording()` — returns UUID on insert.
+**Auto-updated_at triggers:** ✅ Shared `update_updated_at_column()` function + `BEFORE UPDATE` triggers on both tables (verified).
+**OB1 metadata.json:** ✅ `schema/openbrain-meetings-sales/metadata.json` — version 1.0.0, category: extensions.
+**Deno MCP server:** ✅ `schema/openbrain-meetings-sales/index.ts` + `deno.json` — 6 MCP tools (`save_meeting_note`, `save_sales_recording`, `query_meetings`, `query_sales_recordings`, `get_meeting_stats`, `get_sales_pipeline`) for Claude/Cursor stdio integration. Compiles clean on Deno 2.9.1.
+**Skill:** `openbrain-meetings-sales` v2.0.0 — full docs for SQL + MCP usage, Claude/Cursor config instructions.
 
 ## Future / Deferred
 - **Extend ICM pattern to Bridgeboard repo** — apply same three-lane structure

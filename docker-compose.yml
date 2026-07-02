@@ -1,6 +1,8 @@
 services:
   ob1:
-    image: postgres:17
+    # pgvector/pgvector:pg17 = official postgres:17 + vector extension.
+    # Same PG major — existing data volume is drop-in compatible.
+    image: pgvector/pgvector:pg17
     container_name: argus-openbrain
     environment:
       POSTGRES_DB: openbrain
