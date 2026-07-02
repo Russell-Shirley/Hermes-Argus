@@ -1,0 +1,33 @@
+{
+  "name": "Meeting Notes & Sales Recordings",
+  "description": "Two structured storage areas in OpenBrain: meeting notes (transcripts, summaries, participants) and sales call recordings (audio file references, call outcomes, prospect tracking). Includes upsert RPCs, FTS indexes, and a Deno MCP tool server for Claude/Cursor access.",
+  "category": "extensions",
+  "author": {
+    "name": "Bridge and Bolt",
+    "github": "Russell-Shirley"
+  },
+  "version": "1.0.0",
+  "requires": {
+    "open_brain": true,
+    "services": [
+      "PostgreSQL (argus-openbrain Docker container)"
+    ],
+    "tools": [
+      "Deno (for MCP server)",
+      "Hermes Agent (for skill-based access)"
+    ]
+  },
+  "tags": [
+    "meetings",
+    "sales",
+    "recordings",
+    "crm",
+    "transcripts",
+    "mcp",
+    "fts"
+  ],
+  "difficulty": "intermediate",
+  "estimated_time": "30 minutes",
+  "created": "2026-07-02",
+  "updated": "2026-07-02"
+}
