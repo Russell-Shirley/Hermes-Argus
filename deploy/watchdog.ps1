@@ -1,4 +1,18 @@
-# Hermes Gateway Watchdog
+# ============================================================================
+# DEPRECATED (2026-07-14) — DO NOT USE. Superseded by native-gateway-watchdog.ps1
+# ----------------------------------------------------------------------------
+# This script launches the gateway inside WSL2. The gateway now runs
+# WINDOWS-NATIVE, and running a WSL gateway alongside it makes both poll the
+# same Telegram bot token -> 409 conflict + a --replace restart storm (this is
+# exactly what took Telegram/Slack/Email down on 2026-07-14).
+#
+# The 'HermesGatewayWatchdog' scheduled task has been REPOINTED to
+# native-gateway-watchdog.ps1 and this WSL watchdog is no longer invoked.
+# Do NOT re-enable a WSL watchdog. Kept only for historical reference.
+# See: native-gateway-watchdog.ps1 and memory project_windows_native_gateway.
+# ============================================================================
+#
+# Hermes Gateway Watchdog (legacy WSL)
 # Starts the gateway inside WSL2 and restarts it automatically on crash.
 # Registered as a Windows Task Scheduler task via deploy/register-watchdog.ps1
 #
