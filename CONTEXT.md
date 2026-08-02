@@ -71,3 +71,23 @@ Each domain's `_context.md` references the `_config/` files it depends on.
 3. Load the domain `_context.md` for domain-specific rules
 4. Load the matching skill's `SKILL.md` for the procedure
 5. Load any `references/*.md` that the skill specifies
+
+---
+
+## Cross-platform session sync (BridgeBoard)
+
+Adds a session-start step, and a terminal step for any change that lands. Claude Code and claude.ai chat
+cannot see each other's sessions — BridgeBoard is the only seam between them.
+
+- **Session start — pull.** Before the first substantive change, `search_memory` BridgeBoard for
+  `"<this repo> code-session"` and for `decision` entries naming this repo. Architecture and scope
+  calls made in a chat session often never reached the code. Flag any conflict with repo state to
+  Russell; never resolve it silently. An empty result is normal — say so and continue.
+- **After each merge — push.** Once the merge is confirmed landed, push a summary so the next chat
+  session starts informed. Report the returned record ID; never report a summary as saved without
+  one. This **never blocks a landed merge** — if the connector is unavailable (common in headless
+  and cron runs), post the summary as a comment on the merged PR and say so.
+
+Full procedure, the BridgeBoard/Hindsight tool-name collision, and the scrub rule:
+[`skills/_shared/bridgeboard-sync/SKILL.md`](skills/_shared/bridgeboard-sync/SKILL.md).
+BridgeBoard is advisory; GitHub remains the system of record.
