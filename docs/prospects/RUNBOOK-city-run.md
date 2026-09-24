@@ -1,8 +1,16 @@
 # City-run manifest — Duct cleaning (and other local-service) prospecting
 
 **One city + one vertical = one folder.** Everything below lives inside it, so filenames never
-need to carry the city name. Repo: `Hermes-Argus/docs/prospects/<city>-<vertical>-<YYYYMM>/`.
-Archive (screenshots, raw dumps): `Documents/GitHub/prospect-<city>-<vertical>-<YYYYMM>/`.
+need to carry the city name.
+
+| Where | What |
+|---|---|
+| `bb-audit-kit/research/hermes/<date>-<niche>-<area>/` | **the FINDINGS** — one finished run |
+| `Hermes-Argus/docs/prospects/` | the TOOLING — `bb-prospecting-kit/` + this runbook |
+| `Documents/GitHub/prospect-<city>-<vertical>-<YYYYMM>/` | archive (screenshots, raw dumps) |
+
+**Findings never go in the Hermes repo**, and tooling never goes in the findings repo. The Hermes
+repo is the agent system; a run's output is client work product.
 
 This is the answer to "when we finish a city search, what do we save?" — the checklist is §4.
 
@@ -71,7 +79,7 @@ Drive them in place with `RUN_DATA` (they default to `<tool>/../data`, so they a
 do copy them into a run):
 
 ```bash
-RUN="docs/prospects/<city>-<vertical>-<YYYYMM>"
+RUN="C:/Users/Russell/Documents/GitHub/bb-audit-kit/research/hermes/<date>-<niche>-<area>"
 RUN_DATA="$RUN/data" python docs/prospects/bb-prospecting-kit/local_rank_probe_v4.py "<query>"
 ```
 
@@ -98,9 +106,9 @@ Everything prospect-related lives in **this repo**, under `docs/prospects/`:
 
 | Path | What | In git? |
 |---|---|---|
-| `bb-prospecting-kit/` | the pipeline (code) | ✅ |
-| `bb-prospecting-kit/ledgers/<niche>.jsonl` | the ledger — **one per vertical** | ✅ |
-| `<city>-<vertical>-<YYYYMM>/` | one run (data only) | ✅ |
+| `Hermes-Argus/docs/prospects/bb-prospecting-kit/` | the pipeline (code) | Hermes |
+| `bb-audit-kit/research/prospects/ledgers/<niche>.jsonl` | the ledger — **one per vertical** | findings |
+| `bb-audit-kit/research/hermes/<date>-<niche>-<area>/` | one run (findings, data only) | findings |
 
 **Before working a new area, check the ledger:**
 
@@ -137,7 +145,8 @@ Override the ledger dir with `--ledger-dir` or `PROSPECT_LEDGER_DIR`.
 - [ ] README updated with the run date, lead count, and any new corrections to earlier runs
 - [ ] Tooling commit SHA recorded in the run README (provenance, in place of a copied `scripts/`)
 - [ ] Screenshots/logs moved to the archive folder, not committed
-- [ ] Committed on a `docs/<city>-…` branch and opened as a PR
+- [ ] Committed in the **findings repo** (bb-audit-kit) on a branch, opened as a PR
+- [ ] Nothing produced by the run committed in Hermes-Argus
 
 ## 5. Standing naming rules
 

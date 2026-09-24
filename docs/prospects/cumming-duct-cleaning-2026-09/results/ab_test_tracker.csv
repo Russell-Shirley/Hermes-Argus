@@ -1,9 +1,0 @@
-business,rank,pattern,arm,claim_a_status,claim_b_status,sent_date,reply_Y_N,reply_text,outcome
-Andy Lewis/Hobson Heating & Air,29,SILENT,A,TRUE (10/10 unanswered; 0/110 replies),n/a,,,,
-Air of America Air Duct & Dryer Vent Cleaning Services,11,SILENT,A,TRUE (10/10 visible unanswered),FALSE (posts 6d ago),,,,
-Blasberg Cleaning,18,SILENT,A,TRUE (visible recent unanswered),TRUE (no posts ever),,,,
-H & M Services,25,SILENT,B,TRUE (9/10; 1 reply in 74),TRUE (no posts ever),,,,
-"Jade Heating & Air, Inc.",20,SILENT,B,TRUE (visible recent unanswered),TRUE (no posts ever),,,,
-Georgia Comfort Heating and Air Conditioning,26,SPOTTY,B,TRUE (7/10 unanswered),TRUE (no posts ever),,,,
-Technicare Home Pros,15,DECAYED,custom,TRUE-ish (9/10 after years at 100%),FALSE (posts weekly),,,,
-"ClimateSmith, LLC",32,SHALLOW,custom,FALSE (8/10 newest have replies),FALSE (posts Sep 14),,,,

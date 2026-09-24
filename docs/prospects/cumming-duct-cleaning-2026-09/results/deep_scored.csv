@@ -1,9 +1,0 @@
-rank,business,reviews_total,pulled,lifetime_coverage_pct,recent10_coverage_pct,replies,reply_substance_pct,bare_template_pct,median_reply_chars,pattern,why
-,Technicare Home Pros,343,110,90,10,99,2,72,16,DECAYED,lifetime 90% but newest 10 only 10% — program lapsed recently
-,H & M Services,74,74,1,0,1,0,0,102,SILENT,lifetime 1% but newest 10 only 0% — never really replied
-,Andy Lewis/Hobson Heating & Air,471,110,0,0,0,,,,SILENT,lifetime 0% but newest 10 only 0% — never really replied
-,"ClimateSmith, LLC",,58,47,80,27,11,11,45,SHALLOW,recent 80% but only 11% of replies mention the job
-,Georgia Comfort Heating and Air Conditioning,59,59,34,30,20,40,0,158,SPOTTY,"recent 30%, lifetime 34% — inconsistent"
-,"Jade Heating & Air, Inc.",100,5,0,0,0,,,,THIN,only 5 reviews surfaced — pull again before pitching
-,Blasberg Cleaning,34,5,0,0,0,,,,THIN,only 5 reviews surfaced — pull again before pitching
-,Air of America Air Duct & Dryer Vent Cleaning Services,642,5,0,0,0,,,,THIN,only 5 reviews surfaced — pull again before pitching
