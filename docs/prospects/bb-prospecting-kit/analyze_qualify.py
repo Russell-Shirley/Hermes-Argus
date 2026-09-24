@@ -104,8 +104,11 @@ def main():
         for k in ("rating", "reviews", "phone"):
             if not r.get(k):
                 r[k] = f.get(k, "")
-        if r.get("status") == "GATED":
-            r["verdict_override"] = "NO DATA (reviews gated — rerun)"
+        if r.get("status") in ("GATED", "ERROR"):
+            # no measurement is not a zero: a gate and a transport error both read as
+            # "we could not see this one", and scoring either as a thin sample hides it
+            why = "reviews gated" if r["status"] == "GATED" else "capture errored"
+            r["verdict_override"] = f"NO DATA ({why} — rerun)"
     recs.sort(key=lambda r: r.get("rank") or 99)
 
     rows = []

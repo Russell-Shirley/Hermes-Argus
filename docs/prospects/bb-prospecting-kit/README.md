@@ -112,9 +112,11 @@ python docs/prospects/bb-prospecting-kit/contacted_ledger.py check \
 1. **40 seconds per business, minimum.** At 15s, 3 of 17 businesses came back
    Google-gated (a sign-in wall beat the scrape); at 40s, **0 of 17** did. Speed
    here costs coverage, and a gated business silently looks like a zero.
-2. **Never score a gated business as zero.** Gated rows are retried, not scored.
-   `diag_gate.py` proved the "limited view" marker is a false positive — the card
-   count is the real gate signal.
+2. **Never score an unmeasured row as zero.** A gate (`GATED`) and a transport
+   error (`ERROR`) both mean "we could not see this one" — both are retried on the
+   next pass and both render as `NO DATA (... — rerun)` in the report. `diag_gate.py`
+   proved the "limited view" marker is a false positive — the card count is the real
+   gate signal.
 
 ## Verticals
 

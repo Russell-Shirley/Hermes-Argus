@@ -88,3 +88,18 @@ def test_unreadable_exclusions_file_warns_instead_of_crashing(tmp_path):
                        capture_output=True, text=True)
     assert p.returncode == 0, p.stderr
     assert "WARNING" in p.stdout
+
+
+@pytest.mark.parametrize("status,expect", [
+    ("GATED", "NO DATA (reviews gated — rerun)"),
+    ("ERROR", "NO DATA (capture errored — rerun)"),
+])
+def test_an_unmeasured_row_is_never_scored_as_a_thin_sample(tmp_path, status, expect):
+    """A gate and a transport error both mean 'not seen'; neither is a zero, and neither
+    may fall through to a verdict that reads like a measurement."""
+    _, report, _ = run(tmp_path, [rec(status=status, response_rate_recent=None,
+                                      recent_positive_n=0, owner_responses_recent=0)],
+                       argv=["--area-label=canton-ga"])
+    assert expect in report
+    assert "REVIEW MORE" not in report
+    assert "QUALIFIED" not in report

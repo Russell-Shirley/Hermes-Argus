@@ -27,6 +27,9 @@ RESULTS = os.path.join(DATA, "qualify_results.jsonl")   # appended + resumed, ne
 MIN_RATING = 4.5
 MIN_REVIEWS = 30
 MIN_SECONDS_PER_BUSINESS = 40.0   # USER RULE (raised from 15s): never faster than 40s per business
+# A row that carries no measurement must never be scored as if it had one. A gate and a
+# transport error are the same problem for the reader — "no data" — so both are retried.
+RETRY_STATUSES = ("GATED", "ERROR")
 SCROLL_ROUNDS = 8
 MAX_REVIEWS = 120
 AGE_DAYS = {"day": 1, "week": 7, "month": 30, "year": 365}
@@ -272,7 +275,8 @@ def main():
         for line in open(RESULTS, encoding="utf-8"):
             try:
                 j = json.loads(line)
-                if j.get("status") != "GATED":   # gated rows are retried
+                # gated / errored rows carry no measurement — always retried
+                if j.get("status") not in RETRY_STATUSES:
                     done.add(j["name"])
             except Exception:
                 pass
@@ -284,8 +288,8 @@ def main():
     for t in targets:
         t0 = time.time()
         rec = scrape_one(browser, t)
-        if rec.get("status") == "GATED":
-            print(f"   GATED -> cooling off 70s, retrying {rec['name']}")
+        if rec.get("status") in RETRY_STATUSES:
+            print(f"   {rec['status']} -> cooling off 70s, retrying {rec['name']}")
             time.sleep(70)
             rec2 = scrape_one(browser, t)
             if rec2.get("status") == "OK":
