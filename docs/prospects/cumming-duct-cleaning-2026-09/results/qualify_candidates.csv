@@ -1,0 +1,30 @@
+rank,name,rating,reviews,newest_review_days,reviews_last_180d,sample_n,recent_positive_n,owner_responses,owner_response_rate,activity,owner_tier,verdict,phone,status,sorted_newest
+9,Simply Clean Ducts & Vents LLC,4.8,191,14,5,5,5,4,80,HOT,EXCLUDE,EXCLUDE (already responds),(404) 642-6000,OK,False
+10,Reliance Heating and Air,4.8,632,30,5,5,4,4,100,HOT,EXCLUDE,EXCLUDE (already responds),(770) 886-1998,OK,False
+11,Air of America Air Duct & Dryer Vent Cleaning Services,4.9,641,21,4,5,5,0,0,HOT,PRIME,QUALIFIED - PRIORITY,(770) 800-3152,OK,False
+12,"Cheeky Heating, Cooling, & Plumbing",4.8,2736,30,5,5,5,5,100,HOT,EXCLUDE,EXCLUDE (already responds),(770) 892-6657,OK,False
+13,"Kennon Heating, Air & Plumbing",4.9,2923,30,4,5,4,4,100,HOT,EXCLUDE,EXCLUDE (already responds),(470) 239-5255,OK,False
+14,KONVANT Property Services,4.9,50,60,5,5,5,5,100,ACTIVE,EXCLUDE,EXCLUDE (already responds),(770) 809-1434,OK,False
+15,Technicare Home Pros,5.0,343,28,5,5,5,1,20,HOT,STRONG,QUALIFIED,(404) 334-0719,OK,False
+16,SERVPRO of Forsyth and Dawson Counties,4.9,458,90,5,5,4,4,100,ACTIVE,EXCLUDE,EXCLUDE (already responds),(770) 744-1024,OK,False
+17,Home Dryer Solutions,5.0,231,30,4,5,5,5,100,HOT,EXCLUDE,EXCLUDE (already responds),(404) 999-8368,OK,False
+18,Blasberg Cleaning,4.7,34,30,4,5,5,0,0,HOT,PRIME,QUALIFIED - PRIORITY,(470) 641-1015,OK,False
+19,Cooper Massey Services Air Duct Cleaning,4.9,112,90,4,5,5,3,60,ACTIVE,EXCLUDE,EXCLUDE (already responds),(404) 490-2035,OK,False
+20,"Jade Heating & Air, Inc.",4.9,100,90,2,5,4,0,0,ACTIVE,PRIME,QUALIFIED - PRIORITY,(678) 549-9919,OK,False
+21,"Mad Hatter-Fireplace, Grills and Outdoor Living",4.8,1080,120,3,5,5,5,100,SLOWING,EXCLUDE,EXCLUDE (already responds),(770) 740-8133,OK,False
+22,Atlanta Air Experts,4.8,116,1460,0,5,0,0,,DORMANT,THIN,REVIEW MORE (thin sample),(678) 436-8288,OK,False
+23,Hurricane Air Duct Cleaning Services,4.9,274,30,2,5,4,4,100,HOT,EXCLUDE,EXCLUDE (already responds),(404) 777-0563,OK,False
+24,Mustang Dryer Vents,4.9,109,30,5,5,4,3,75,HOT,EXCLUDE,EXCLUDE (already responds),(470) 882-2097,OK,False
+25,H & M Services,4.9,74,30,5,5,5,0,0,HOT,PRIME,QUALIFIED - PRIORITY,(770) 844-8405,OK,False
+26,Georgia Comfort Heating and Air Conditioning,4.6,59,30,3,5,3,1,33,HOT,WATCH,QUALIFIED - WEAKER ANGLE,(855) 432-8266,OK,False
+27,The Cleaning Wiz and Air Ducts Cleaning LLC,5.0,111,150,2,5,4,4,100,SLOWING,EXCLUDE,EXCLUDE (already responds),(678) 887-1549,OK,False
+28,Dynasty Ducts,4.9,197,30,5,5,5,5,100,HOT,EXCLUDE,EXCLUDE (already responds),(770) 750-5460,OK,False
+29,Andy Lewis/Hobson Heating & Air,4.7,471,120,3,3,2,0,0,SLOWING,PRIME,HOLD (activity weak),(770) 602-4400,OK,
+30,Enviro-Master of East Atlanta,5.0,361,90,5,5,5,5,100,ACTIVE,EXCLUDE,EXCLUDE (already responds),(706) 525-5287,OK,False
+31,Integrity Air Care,5.0,445,30,5,5,5,4,80,HOT,EXCLUDE,EXCLUDE (already responds),(470) 302-1083,OK,False
+32,"ClimateSmith, LLC",4.9,58,60,1,5,2,1,50,ACTIVE,WATCH,QUALIFIED - WEAKER ANGLE,(770) 475-9555,OK,False
+33,AirDuct Rescue,5.0,2037,90,5,5,5,3,60,ACTIVE,EXCLUDE,EXCLUDE (already responds),(470) 818-0716,OK,False
+34,SafeAir Services,4.9,137,60,2,5,3,3,100,ACTIVE,EXCLUDE,EXCLUDE (already responds),(770) 954-7959,OK,False
+35,The Honest Guys,4.8,456,120,1,5,2,2,100,SLOWING,EXCLUDE,EXCLUDE (already responds),(470) 447-2600,OK,False
+36,JE Mechanical Heating & Air,4.9,136,21,4,5,5,5,100,HOT,EXCLUDE,EXCLUDE (already responds),(470) 239-1411,OK,False
+37,Quality Air Care HVAC Company & Air Duct Cleaning,5.0,456,30,5,5,5,4,80,HOT,EXCLUDE,EXCLUDE (already responds),(470) 364-9503,OK,False
