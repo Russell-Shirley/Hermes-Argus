@@ -260,7 +260,8 @@ def cmd_check(a) -> int:
         rec, mtype = find(recs, name, phone, a.area)
         if not rec:
             new.append((e.get("local_rank"), name, phone))
-        elif mtype == "name-only" and rec.get("outcome") not in SKIP_OUTCOMES:
+        elif mtype == "name-only":
+            # same name in another area: never auto-skip, whatever its outcome
             flagged.append((e.get("local_rank"), name, phone, rec.get("area"), rec.get("outcome")))
         else:
             seen.append((e.get("local_rank"), name, rec.get("outcome"), rec.get("area"), mtype))
@@ -287,10 +288,10 @@ def cmd_check(a) -> int:
 
 def cmd_mark(a) -> int:
     recs = load()
-    rec, mtype = find(recs, a.name, a.phone, None)
+    rec, mtype = find_strict(recs, a.name, a.phone, a.area or None)
     if not rec:
         if not a.create:
-            print(f"not found: {a.name} / {a.phone} — re-run with --create to add it")
+            print(f"not found: {a.name} / {a.phone} — pass --phone or --area to match, or --create to add it")
             return 2
         rec, _ = upsert(recs, a.name, a.phone, a.area or "unknown", a.niche or "unknown", "", a.status)
     if _rank_outcome(a.status) < _rank_outcome(rec.get("outcome", "")) and not a.force:
@@ -361,6 +362,10 @@ def cmd_selftest(a) -> int:
     _, sm = find_strict(recs, "H&M Services", "", "alpharetta-ga")
     checks.append(("write path ignores bare name when area differs",
                    len([r for r in recs if r.get("name_norm") == "h m services"]) == 2))
+    recs_c = []
+    upsert(recs_c, "H & M Services", "(470) 111-2222", "cumming-ga", "duct-cleaning", "r", "contacted")
+    _, mt = find(recs_c, "H&M Services", "(678) 999-8888", "alpharetta-ga")
+    checks.append(("name-only match is reported as name-only (check must FLAG, not skip)", mt == "name-only"))
     recs2 = []
     ex, _ = upsert(recs2, "Tester Co", "4045551212", "cumming-ga", "duct-cleaning", "r", "excluded")
     adv, ch = upsert(recs2, "Tester Co", "(404) 555-1212", "cumming-ga", "duct-cleaning", "r", "contacted")
