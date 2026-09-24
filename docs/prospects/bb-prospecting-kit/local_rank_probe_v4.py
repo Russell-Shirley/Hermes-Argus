@@ -45,6 +45,59 @@ EXTRACT = """(() => {
   return out;
 })()"""
 
+# Card text parses reliably in Python; the JS patterns above are duct/HVAC-specific
+# and misfire on other verticals — on a septic search they returned the business
+# NAME as the category (its own fallback matched "Carlton Septic Service") and any
+# digit-led text as the address ("5.0(10) Septic system service"). Category is the
+# first thing every vertical's diagnostic reads, so it has to be right.
+_HOURS = re.compile(r"\s+(?:Open 24 hours|Reopens|Open|Closed|Closes soon|Closes|Opens)\b")
+_PHONE = re.compile(r"\(\d{3}\)\s*\d{3}-\d{4}")
+_TAIL = re.compile(r"\s+(?:Website|Directions|Book online|Order online)\b")
+_RATING = re.compile(r"^(\d\.\d)\(([\d,]+)\)\s*")
+
+
+def _cut_segment(s: str) -> str:
+    for pat in (_HOURS, _PHONE, _TAIL):
+        s = pat.split(s)[0]
+    return s.strip(" ·").strip()
+
+
+def parse_card_fields(rec: dict) -> dict:
+    """Derive category/address from the card's own text.
+
+    The card repeats the business name, then ``Rating(Count)`` or ``No reviews``,
+    then the category, then optional ``·``-separated address, then hours/phone.
+    Text position in the card is the most reliable signal we have, and it is
+    vertical-agnostic.
+    """
+    name = " ".join((rec.get("name") or "").split())
+    body = " ".join((rec.get("text") or "").split())
+    for _ in range(2):
+        if name and body.startswith(name):
+            body = body[len(name):].strip()
+    m = _RATING.match(body)
+    if m:
+        rec["rating"] = rec.get("rating") or m.group(1)
+        rec["reviews"] = rec.get("reviews") or m.group(2).replace(",", "")
+        body = body[m.end():]
+    elif body.startswith("No reviews"):
+        rec["reviews"] = rec.get("reviews") or "0"
+        body = body[len("No reviews"):].strip()
+    segs = [s for s in body.split("·") if s.strip()]
+    cat = _cut_segment(segs[0]) if segs else ""
+    if cat:
+        rec["category"] = cat
+    # the JS address pattern accepts ANY digit-led text, so it is never trusted —
+    # clear it and re-derive, leaving "" when the card genuinely lists no address
+    rec["address"] = ""
+    for s in segs[1:]:
+        cand = _cut_segment(s)
+        if cand and not re.fullmatch(r"(?i)(website|directions|book online|order online)", cand):
+            rec["address"] = cand
+            break
+    return rec
+
+
 browser = launch(headless=True, humanize=False)
 page = browser.new_page(viewport={"width": 1440, "height": 1100})
 res = {"query": QUERY}
@@ -73,6 +126,7 @@ reached_end = page.evaluate("!!document.body.innerText.match(/reached the end of
 
 rank = 0
 for i, r in enumerate(full, 1):
+    parse_card_fields(r)
     r["feed_pos"] = i
     if r["sponsored"]:
         r["local_rank"] = None

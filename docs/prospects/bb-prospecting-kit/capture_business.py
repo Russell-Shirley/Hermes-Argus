@@ -260,6 +260,11 @@ def main():
         if a.startswith("--slug="):
             slug = a.split("=", 1)[1]
     slug = slug or slugify(query)
+    # Optional exact place URL from the ranked feed. Navigating straight to the
+    # listing is deterministic: name-based search can stall on the results page
+    # (h1 stays "Results") and it cannot tell two listings apart when they share a
+    # name AND a phone — which is exactly the duplicate-profile case we need.
+    url = next((a.split("=", 1)[1] for a in sys.argv[2:] if a.startswith("--url=")), "")
     t0 = time.time()
     rec = {"query": query, "captured_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
            "area_label": area_label, "gaps": {}}
@@ -267,24 +272,41 @@ def main():
     browser = launch(headless=True, humanize=False)
     ctx = browser.new_context(viewport={"width": 1440, "height": 1100})
     page = ctx.new_page()
+    H1_JS = """(() => {const m=document.querySelector("div[role='main'] h1"); return m?m.innerText.trim():''})()"""
     try:
-        page.goto("https://www.google.com/maps?hl=en", timeout=90000)
-        page.wait_for_timeout(7000)
-        box = page.query_selector('input#searchboxinput, input[name="q"]')
-        box.click(); page.keyboard.type(query, delay=45); page.wait_for_timeout(800)
-        page.keyboard.press("Enter"); page.wait_for_timeout(14000)
-
         opened = False
-        for _ in range(3):
-            link = page.query_selector('div[role="feed"] a.hfpxzc')
-            if link:
-                link.click(); page.wait_for_timeout(12000)
-            h1 = page.evaluate("""(() => {const m=document.querySelector("div[role='main'] h1"); return m?m.innerText.trim():''})()""")
-            if h1 and h1.lower() not in ("results", "search results", "google maps") and len(h1) > 2:
-                opened = True
-                break
-            page.wait_for_timeout(3500)
+        if url:
+            page.goto(url, timeout=90000)
+            page.wait_for_timeout(12000)
+            for _ in range(3):
+                h1 = page.evaluate(H1_JS)
+                if h1 and h1.lower() not in ("results", "search results", "google maps") and len(h1) > 2:
+                    opened = True
+                    break
+                page.wait_for_timeout(4000)
+            rec["resolved_by"] = "place-url"
+        else:
+            page.goto("https://www.google.com/maps?hl=en", timeout=90000)
+            page.wait_for_timeout(7000)
+            box = page.query_selector('input#searchboxinput, input[name="q"]')
+            box.click(); page.keyboard.type(query, delay=45); page.wait_for_timeout(800)
+            page.keyboard.press("Enter"); page.wait_for_timeout(14000)
+
+            for _ in range(3):
+                link = page.query_selector('div[role="feed"] a.hfpxzc')
+                if link:
+                    link.click(); page.wait_for_timeout(12000)
+                h1 = page.evaluate(H1_JS)
+                if h1 and h1.lower() not in ("results", "search results", "google maps") and len(h1) > 2:
+                    opened = True
+                    break
+                page.wait_for_timeout(3500)
+            rec["resolved_by"] = "name-search"
         rec["opened_listing"] = opened
+        if not opened:
+            # never write a silent "Results" page as if it were the business
+            rec["gaps"]["RESOLUTION_FAILED"] = ("listing never opened — every field below is the "
+                                                "search-results page, NOT the business")
         dismiss(page)
         rec.update(page.evaluate(HEADER_JS))
         # which search captured this business — traceable on every record
