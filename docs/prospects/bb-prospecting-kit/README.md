@@ -48,7 +48,7 @@ RUN_DATA="$RUN/data" python docs/prospects/bb-prospecting-kit/qualify_reviews_v2
 | 1 | `local_rank_probe_v4.py "<query>"` | `data/ranked-feed.json` + `.csv` | The ranked list. Scrolls to "end of the list". **Google prints no rank number** — rank is positional list order (`pin_number_check.py` is the evidence). |
 | 2 | `qualify_reviews_v2.py <lo> <hi> [--min-reviews=N]` | `data/qualify_results.jsonl` | Appends and is resumable. Waits **40s/business** — see pacing below. |
 | 3 | `merge_results.py` | `data/qualify_merged.jsonl` | One record per business, best run wins. |
-| 4 | `analyze_qualify.py [--area-label=...]` | `data/qualify_candidates.csv`, `qualify_leads.csv`, `qualify_report.md` | Emits the leads file too. First column is `captured_by`. |
+| 4 | `analyze_qualify.py [--area-label=<slug>] [--title=<text>]` | `data/qualify_candidates.csv`, `qualify_leads.csv`, `qualify_report.md` | Emits the leads file too. First column is `captured_by`. `--area-label` takes either `canton-ga` or `Canton-GA` (one label convention, shared with the ledger); the report header derives from it, so the report names its own run. |
 | 5 | `deep_reviews.py "<name>" [...]` | `data/deep_reviews.json` | Full review population — the ground truth for validating the capture. |
 | 6 | `score_deep.py` | `data/deep_scored.csv` | Scores **recent coverage (newest 10)** + reply substance. Lifetime coverage alone misleads. |
 | 7 | `probe_posts_iso.py "<name>"` | merge into `data/posts_verified.json` | Authoritative post evidence. A pane-text scan gives **false negatives** — never trust it alone. |
@@ -62,6 +62,13 @@ Diagnostics and one-offs (kept because the knowledge is load-bearing):
 | `pin_number_check.py` | Proves Maps results carry **no rank number** in the DOM — the answer to "does Google show you the ranks?" |
 | `check_posts.py` | Earlier post probe, superseded by `probe_posts_iso.py`; kept for comparison |
 | `oneoff_andylewis.py` | Worked example of the fallback route for a listing that kept gating |
+
+### Per-run inputs that must not live in the toolkit
+
+`<run data>/exclusions.json` — either `["Name", ...]` or `{"names": [...]}` — names the
+run was told not to contact, whatever the numbers say. It is read by
+`analyze_qualify.py` and it lives **with the run**, because a call-out made about one
+city is not a rule for the next one. No file means no exclusions.
 
 ## The ledgers — one per vertical, in the findings repo
 

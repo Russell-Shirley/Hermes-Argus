@@ -17,11 +17,45 @@ DATA = os.environ.get("RUN_DATA") or os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "data")
 SRC = os.path.join(DATA, "qualify_merged.jsonl")
 
-EXCLUDE_ALWAYS = {"Cheeky Heating, Cooling, & Plumbing"}   # user called this out explicitly
+EXCLUDE_ALWAYS_DEFAULT: set = set()
+
+_AREA_ARG = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--area-label=")), "")
+
+try:
+    # One implementation of the label convention for the whole kit: 'canton-ga' and
+    # 'Canton-GA' both render 'Canton-GA', so a changed convention is a one-line edit
+    # in contacted_ledger rather than a hand-edit in two files.
+    from contacted_ledger import area_label_for as _area_label_for
+except ImportError as _e:  # pragma: no cover
+    raise SystemExit(
+        "analyze_qualify.py must sit beside contacted_ledger.py — run the kit in place "
+        f"against a run's data dir (RUN_DATA=...), don't copy single scripts out: {_e}")
 
 # Which search captured this business. Rendered on every row so a lead can be traced
 # back to the run that found it, e.g. "Cumming-GA - Bobs Dryer Vent Cleaning".
-AREA_LABEL = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--area-label=")), "")
+AREA_LABEL = _area_label_for(_AREA_ARG)
+
+
+def load_exclusions() -> set:
+    """Per-run "never contact this one" call-outs live WITH the run, not in the toolkit.
+
+    `<run data>/exclusions.json` — either ``["Name", ...]`` or ``{"names": [...]}``.
+    Hardcoding a city's call-out here leaked that city's judgement into every other
+    run the toolkit serves.
+    """
+    path = os.path.join(DATA, "exclusions.json")
+    if not os.path.exists(path):
+        return set(EXCLUDE_ALWAYS_DEFAULT)
+    try:
+        raw = json.load(open(path, encoding="utf-8"))
+    except Exception as e:
+        print(f"WARNING: could not read {path} ({e}) — using no exclusions")
+        return set(EXCLUDE_ALWAYS_DEFAULT)
+    names = raw.get("names") if isinstance(raw, dict) else raw
+    return {str(n).strip() for n in (names or []) if str(n).strip()} or set(EXCLUDE_ALWAYS_DEFAULT)
+
+
+EXCLUDE_ALWAYS = load_exclusions()
 
 
 def captured_by(name: str) -> str:
@@ -145,10 +179,19 @@ def main():
     print(f"\nqualified: {len(prim)} | of {len(rows)}")
     print("sorted_newest achieved:", sum(1 for r in rows if r.get("sorted_newest")), "/", len(rows))
 
+    # The report header names the run, so derive it — a hardcoded city here shipped the
+    # first run's title into every later one.
+    title = next((a.split("=", 1)[1] for a in sys.argv[1:] if a.startswith("--title=")), "")
+    if not title:
+        title = (f"Duct cleaning — {AREA_LABEL}: mid-list qualification pass"
+                 if AREA_LABEL else "Mid-list qualification pass")
+    ranks = [r["rank"] for r in rows if r.get("rank")]
+    span = f"ranks {min(ranks)}-{max(ranks)}" if ranks else "rank span unavailable"
+
     with open(os.path.join(DATA, "qualify_report.md"), "w", encoding="utf-8") as f:
-        f.write("# Duct cleaning — Cumming GA: mid-list qualification pass\n\n")
-        f.write(f"Source list: Google Maps ranked feed (`ranked_duct_cumming_v4.json`), ranks 9-25.\n")
-        f.write(f"Businesses checked: {len(rows)}. Criteria: rank 9-30, rating >= 4.5, reviews >= 30,\n")
+        f.write(f"# {title}\n\n")
+        f.write(f"Source list: Google Maps ranked feed (`ranked-feed.json`), {span}.\n")
+        f.write(f"Businesses checked: {len(rows)}. Criteria: ignore the top 8, rating >= 4.5, reviews >= 30,\n")
         f.write("recent positive reviews with few/no owner responses.\n\n")
         f.write("| Rank | Business | Rating (revs) | Newest review | Owner resp. | Tier | Verdict |\n")
         f.write("|---|---|---|---|---|---|---|\n")
