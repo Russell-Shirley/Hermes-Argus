@@ -2,7 +2,7 @@
 column per diagnostic. Anything not captured shows its GAP reason rather than a blank,
 so a gate is never mistaken for a zero.
 """
-import glob, json, os
+import glob, json, os, sys
 
 OUT = os.path.dirname(os.path.abspath(__file__))
 # The run's data dir. Defaults to <run>/data when this toolkit is copied into
@@ -10,6 +10,32 @@ OUT = os.path.dirname(os.path.abspath(__file__))
 DATA = os.environ.get("RUN_DATA") or os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "data")
 CAP = os.path.join(DATA, "captures")
+
+
+class _Tee:
+    """Write the matrix to captures/MATRIX.txt as it prints.
+
+    The runbook and the end-of-run checklist both name MATRIX.txt as this step's
+    artifact; printing only meant the file existed in one run because someone piped
+    stdout into it by hand, and was missing in every run after that.
+    """
+
+    def __init__(self, path):
+        self.f = open(path, "w", encoding="utf-8")
+        # the REAL stdout, captured before this object replaces it — writing through
+        # sys.stdout here would call straight back into self.write
+        self.out = sys.stdout
+
+    def write(self, s):
+        self.f.write(s)
+        self.out.write(s)
+
+    def flush(self):
+        self.f.flush()
+        self.out.flush()
+
+    def close(self):
+        self.f.close()
 
 ROWS = [
     ("1 recent coverage (newest 10)", lambda m, r: f"{m.get('recent10_answered')}/{m.get('recent10_total')} answered"),
@@ -39,6 +65,10 @@ for f in files:
     if j.get("status") in ("OK", "GATED", "ERROR") and j.get("name"):
         recs.append(j)
 
+os.makedirs(CAP, exist_ok=True)
+_tee = _Tee(os.path.join(CAP, "MATRIX.txt"))
+sys.stdout = _tee
+
 print(f"{len(recs)} captures\n")
 for r in recs:
     m = r.get("metrics") or {}
@@ -54,3 +84,8 @@ for r in recs:
     if g:
         print(f"    gaps: {', '.join(g.keys())}")
     print()
+
+_tee.flush()
+_tee.close()
+sys.stdout = sys.__stdout__
+print(f"wrote {os.path.join(CAP, 'MATRIX.txt')} ({len(recs)} captures)")
