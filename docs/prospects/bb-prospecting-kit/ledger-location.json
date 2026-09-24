@@ -1,0 +1,4 @@
+{
+  "ledger_dir": "C:/Users/Russell/Documents/GitHub/bb-audit-kit/research/prospects/ledgers",
+  "_comment": "Findings live in the findings repo (bb-audit-kit), NEVER in the Hermes repo. Absolute so it resolves identically from any checkout/worktree. Override with --ledger-dir or PROSPECT_LEDGER_DIR."
+}

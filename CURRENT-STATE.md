@@ -4,8 +4,8 @@
 > Read at session start. Update on significant changes.
 
 ## Last Updated
-- **Date:** 2026-07-02
-- **By:** Hermes Agent (Open Brain — two new schema areas: meeting_notes + sales_recordings)
+- **Date:** 2026-09-24
+- **By:** Hermes Agent (prospect-research toolkit + cross-city ledger now canonical in-repo)
 
 ## Identity
 - **Agent name:** Argus Panoptes ("Argus")
@@ -140,6 +140,34 @@ Two dedicated tables created in OpenBrain Postgres (argus-openbrain container):
 - **Extend to AI Factory** — align AI Factory skills frontmatter with Hermes-Argus convention
 - **Create client services skills** — populate `skills/clients/` with onboarding and outreach playbooks
 - **Hindsight auto-start** — add to Task Scheduler so it survives reboots (tracked in issue #13)
+
+## Prospect Research (local-SEO lead generation)
+
+The city prospecting pipeline lives in the repo, in one place, so a run folder holds
+**data only** — a fix to a script fixes it for every city instead of one copy.
+
+| Path | What |
+|------|------|
+| `docs/prospects/bb-prospecting-kit/` | **bb-prospecting-kit** — the pipeline (13 scripts) + `README.md`: rank probe, review qualification, deep pulls, capture matrix, cross-city ledger |
+| `bb-audit-kit/research/prospects/ledgers/<niche>.jsonl` | **The ledgers — in the FINDINGS repo, not here.** One per vertical; `duct-cleaning.jsonl` = 29 from Cumming GA |
+| `docs/prospects/RUNBOOK-city-run.md` | Per-run checklist — *on the `docs/cumming-duct-cleaning-prospect-run` branch (PR #27), not yet on master* |
+
+- **Runs (findings) live in bb-audit-kit**: `research/hermes/<date>-<niche>-<area>/`, driven in
+  place with `RUN_DATA=<run>/data`. Nothing produced by a run is committed here.
+- Ledgers are **per vertical** (`--niche` required for seed/check/mark): an exclusion in one
+  vertical must not hide the same business from another — the offers differ.
+- Consultation **before** a new area: `contacted_ledger.py check --feed <run>/data/ranked-feed.json
+  --area <area> --niche <vertical>` → SKIP / FLAG / NEW, matched on phone first, then name+area.
+  Same name in a different area flags for a human and never auto-skips; a business on file for
+  another vertical reports as INFO.
+- Verticals worked so far: duct cleaning (Cumming GA, 8 leads). **Next: septic** —
+  same pipeline plus the tracker field-completion + ladder-rung flow in the
+  `septic-lead-research` skill (FMCSA census for owner emails, GA SOS, category health).
+- **Open question:** the older single-file ledger still exists at
+  `bb-audit-kit/research/prospects/contacted.jsonl` (PR #31, unmerged), superseded by the
+  per-vertical ledgers here. Its uncommitted contact-enrichment (place_ids, emails, Apollo
+  notes) was **ported into** `ledgers/duct-cleaning.jsonl`, so nothing is stranded there —
+  but the file itself should be retired so the two cannot drift.
 
 ## Runbooks
 - **[Gateway recovery](docs/runbooks/gateway-recovery.md)** — sev-1. Slack silence / gateway crash.
