@@ -225,5 +225,8 @@ PY="C:/Users/Russell/AppData/Local/hermes/hermes-agent/venv/Scripts/python.exe"
 "$PY" score_deep.py                                                   # pattern + substance
 ```
 
-Then re-apply §5 before any email goes out. Reusable method notes live in the Hermes skill
-`local-rank-tracking`.
+Then re-apply §5 before any email goes out.
+
+Reusable method lives in two Hermes skills: **`local-rank-tracking`** (rank + review measurement,
+deep pulls, pacing, DOM recipes) and **`review-gap-outreach`** (claim-verification gate, pattern →
+message mapping, opener structure, A/B protocol).
