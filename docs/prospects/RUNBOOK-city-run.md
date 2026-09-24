@@ -45,8 +45,8 @@ This is the answer to "when we finish a city search, what do we save?" — the c
 | `results/ranked-feed.json/.csv` | `local_rank_probe_v4.py` | ranked positions, names, ratings, review counts, phones, ad flags | ✅ |
 | `results/qualify_results.jsonl` | `qualify_reviews_v2.py` | raw scrape state, resumable — **retries append here**, that's the `_vN` files in old runs | ✅ |
 | `results/qualify_merged.jsonl` | `merge_results.py` | one record per business, best record wins | ✅ |
-| `results/qualify_candidates.csv` | `analyze_qualify.py` | all evaluated businesses: gates, tiers, verdicts, claim status | ✅ |
-| `results/qualify_leads.csv` | `analyze_qualify.py` | the qualified leads only | ✅ |
+| `results/qualify_candidates.csv` | `analyze_qualify.py` | all evaluated businesses: gates, tiers, verdicts, claim status. **First column is `captured_by`** (`Cumming-GA - <business>`), so any row traces back to the search that found it | ✅ |
+| `results/qualify_leads.csv` | `analyze_qualify.py` | the qualified leads only, same `captured_by` first column | ✅ |
 | `results/qualify_report.md` | `analyze_qualify.py` | rendered report (same data, prose) | ✅ |
 | `results/deep_reviews.json` | `deep_reviews.py` | full-population review pulls — the ground truth for validating the capture | ✅ |
 | `results/deep_scored.csv` | `score_deep.py` | pattern scores on recent coverage + reply substance | ✅ |
@@ -79,6 +79,20 @@ archive folder; the README names the load-bearing ones.
 `oneoff_andylewis.py` is a one-off (a listing whose place URL kept gating); kept as a worked example
 of the fallback route, not part of the standard order.
 
+## 3b. Where a run lives, and the ledger
+
+Runs live at `bb-audit-kit/research/hermes/<date>-<niche>-<area>/` (e.g.
+`2026-09-22-duct-cleaning-cumming-ga`). Before working a new area, check the cross-city ledger:
+
+```bash
+python bb-audit-kit/research/tools/contacted_ledger.py check --feed <run>/data/ranked-feed.json --area alpharetta-ga
+```
+
+It prints SKIP / FLAG / NEW against `bb-audit-kit/research/prospects/contacted.jsonl` — every
+business we have ever evaluated, including exclusions — matched on **phone first**, then
+**name+area**. Same name in a different area is a FLAG for a human, never an automatic skip.
+See `research/prospects/README.md` for the schema and rules.
+
 ## 4. End-of-run checklist
 
 - [ ] `ranked-feed.json` written and the list scrolled to "end of the list"
@@ -89,6 +103,8 @@ of the fallback route, not part of the standard order.
 - [ ] `captures/MATRIX.txt` regenerated; every `gaps` entry reviewed
 - [ ] Claim-verification pass re-applied to every draft (§5 of README)
 - [ ] `outreach_drafts.md` + `ab_test_tracker.csv` current, arms pattern-matched
+- [ ] Every business evaluated (including exclusions) seeded into the ledger with its `captured_by`
+- [ ] `contacted_ledger.py check` re-run against the run's own feed — should report no unexpected NEW
 - [ ] README updated with the run date, lead count, and any new corrections to earlier runs
 - [ ] Screenshots/logs moved to the archive folder, not committed
 - [ ] Committed on a `docs/<city>-…` branch and opened as a PR
