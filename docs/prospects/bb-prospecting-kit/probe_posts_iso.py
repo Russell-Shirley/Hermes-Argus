@@ -6,6 +6,12 @@ import json, os, re, sys
 from cloakbrowser import launch
 
 OUT = os.path.dirname(os.path.abspath(__file__))
+# The run's data dir. Defaults to <run>/data when this toolkit is copied into
+# <run>/scripts/; set RUN_DATA to run it IN PLACE against any run folder.
+DATA = os.environ.get("RUN_DATA") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "data")
+os.makedirs(DATA, exist_ok=True)
+
 QUERY = sys.argv[1] if len(sys.argv) > 1 else "Technicare Home Pros Cumming GA"
 
 browser = launch(headless=True, humanize=False)
@@ -52,7 +58,7 @@ opened = page.evaluate("""(() => {
 })()""")
 print("posts open attempt:", opened)
 page.wait_for_timeout(7000)
-page.screenshot(path=os.path.join(OUT, "posts_iso_" + re.sub(r"[^A-Za-z0-9]+", "_", QUERY)[:26] + ".png"))
+page.screenshot(path=os.path.join(DATA, "posts_iso_" + re.sub(r"[^A-Za-z0-9]+", "_", QUERY)[:26] + ".png"))
 
 body = page.evaluate("""(() => {const m=document.querySelector("div[role='main']"); return m?m.innerText.replace(/\\s+/g,' '):''})()""")
 print("\n--- main pane text (first 1200) ---")

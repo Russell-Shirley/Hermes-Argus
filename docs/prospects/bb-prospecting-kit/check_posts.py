@@ -10,7 +10,13 @@ import json, os, re, sys, time
 from cloakbrowser import launch
 
 OUT = os.path.dirname(os.path.abspath(__file__))
-RESULTS = os.path.join(OUT, "gbp_posts.json")
+# The run's data dir. Defaults to <run>/data when this toolkit is copied into
+# <run>/scripts/; set RUN_DATA to run it IN PLACE against any run folder.
+DATA = os.environ.get("RUN_DATA") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "data")
+os.makedirs(DATA, exist_ok=True)
+
+RESULTS = os.path.join(DATA, "gbp_posts.json")
 MIN_SECONDS = 40.0
 
 browser = launch(headless=True, humanize=False)
@@ -69,7 +75,7 @@ def check(query):
         dates = re.findall(r"(\d+\s+(?:day|week|month|year)s?\s+ago|a\s+(?:day|week|month|year)\s+ago|yesterday)", txt, re.I)
         rec["dates_seen"] = dates[:10]
         rec["posts_snippet"] = txt[:600]
-        page.screenshot(path=os.path.join(OUT, "posts_" + re.sub(r"[^A-Za-z0-9]+", "_", query)[:28] + ".png"))
+        page.screenshot(path=os.path.join(DATA, "posts_" + re.sub(r"[^A-Za-z0-9]+", "_", query)[:28] + ".png"))
         rec["status"] = "OK" if rec.get("name") else "GATED"
     except Exception as e:
         rec["status"] = "ERROR"

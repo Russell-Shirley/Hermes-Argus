@@ -8,10 +8,16 @@ import json, os, random, re, time
 from cloakbrowser import launch
 
 OUT = os.path.dirname(os.path.abspath(__file__))
+# The run's data dir. Defaults to <run>/data when this toolkit is copied into
+# <run>/scripts/; set RUN_DATA to run it IN PLACE against any run folder.
+DATA = os.environ.get("RUN_DATA") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "data")
+os.makedirs(DATA, exist_ok=True)
+
 NAME = "Andy Lewis/Hobson Heating & Air"
 QUERY = "Andy Lewis Hobson Heating Air Cumming GA"
 RANK = 29
-RESULTS = os.path.join(OUT, "qualify_results_v6.jsonl")
+RESULTS = os.path.join(DATA, "qualify_results_v6.jsonl")
 
 AGE_DAYS = {"day": 1, "week": 7, "month": 30, "year": 365}
 MIN_SECONDS = 40.0
@@ -83,14 +89,14 @@ page.keyboard.type(QUERY, delay=45)
 page.wait_for_timeout(800)
 page.keyboard.press("Enter")
 page.wait_for_timeout(15000)
-page.screenshot(path=os.path.join(OUT, "andylewis_feed.png"))
+page.screenshot(path=os.path.join(DATA, "andylewis_feed.png"))
 
 link = page.query_selector('div[role="feed"] a.hfpxzc')
 print("feed result:", bool(link), link.get_attribute("aria-label") if link else "")
 if link:
     link.click()
     page.wait_for_timeout(13000)
-page.screenshot(path=os.path.join(OUT, "andylewis_place.png"))
+page.screenshot(path=os.path.join(DATA, "andylewis_place.png"))
 
 # dismiss any sign-in modal
 for _ in range(3):
@@ -117,7 +123,7 @@ for _ in range(3):
     page.wait_for_timeout(6000)
     n = page.evaluate("document.querySelectorAll('div[data-review-id]').length") or 0
 print("cards after expand:", n)
-page.screenshot(path=os.path.join(OUT, "andylewis_reviews.png"))
+page.screenshot(path=os.path.join(DATA, "andylewis_reviews.png"))
 
 for _ in range(8):
     page.evaluate("""(() => {[...document.querySelectorAll('div')].filter(d => d.scrollHeight > d.clientHeight + 120).forEach(d => d.scrollTop = d.scrollHeight);})()""")

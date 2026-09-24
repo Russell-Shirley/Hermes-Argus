@@ -6,6 +6,12 @@ import json, os, re, sys
 from cloakbrowser import launch
 
 OUT = os.path.dirname(os.path.abspath(__file__))
+# The run's data dir. Defaults to <run>/data when this toolkit is copied into
+# <run>/scripts/; set RUN_DATA to run it IN PLACE against any run folder.
+DATA = os.environ.get("RUN_DATA") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "data")
+os.makedirs(DATA, exist_ok=True)
+
 QUERIES = [
     "air duct cleaning Cumming GA",
     "best duct cleaning in Cumming GA",
@@ -35,7 +41,7 @@ for q in QUERIES:
     box.click(); page.keyboard.type(q, delay=30); page.wait_for_timeout(600)
     page.keyboard.press("Enter"); page.wait_for_timeout(10000)
     slug = re.sub(r"\W+", "_", q)[:40]
-    page.screenshot(path=os.path.join(OUT, f"serp_pin_{slug}.png"), full_page=True)
+    page.screenshot(path=os.path.join(DATA, f"serp_pin_{slug}.png"), full_page=True)
     body = page.evaluate("document.body.innerText")
     info["walled"] = bool(re.search(r"unusual traffic|not a robot", body, re.I))
     info["numeric_pin_labels"] = page.evaluate(PIN_JS)
@@ -65,6 +71,6 @@ for q in QUERIES:
     print("  pack links (/maps/place/):", info["pack_links"][:8])
 
 browser.close()
-with open(os.path.join(OUT, "pin_number_check.json"), "w", encoding="utf-8") as f:
+with open(os.path.join(DATA, "pin_number_check.json"), "w", encoding="utf-8") as f:
     json.dump(report, f, indent=2, ensure_ascii=False)
 print("\nsaved pin_number_check.json")

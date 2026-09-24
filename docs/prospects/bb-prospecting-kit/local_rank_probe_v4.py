@@ -105,7 +105,7 @@ res = {"query": QUERY}
 page.goto("https://www.google.com/maps/search/" + QUERY.replace(" ", "+") + "/", timeout=90000)
 page.wait_for_timeout(16000)
 top = page.evaluate(EXTRACT)
-page.screenshot(path=os.path.join(OUT, "maps_top_v4.png"))
+page.screenshot(path=os.path.join(DATA, "maps_top_v4.png"))
 
 prev, stable = -1, 0
 for _ in range(16):
@@ -165,7 +165,7 @@ serp["local_pack_entries"] = pack
 serp["local_pack_count"] = len(pack)
 # is there an actual embedded map element?
 serp["has_map_element"] = page.evaluate("!!document.querySelector('div[data-attrid=\"map\"], div[jscontroller][data-maps-embed], .lu-fs, div.kno-mf')")
-page.screenshot(path=os.path.join(OUT, "serp_v4.png"), full_page=True)
+page.screenshot(path=os.path.join(DATA, "serp_v4.png"), full_page=True)
 res["serp"] = serp
 browser.close()
 
