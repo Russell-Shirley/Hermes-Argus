@@ -231,7 +231,7 @@ def upsert(recs: list[dict], name: str, phone: str, area: str, niche: str, run: 
         "phone_digits": norm_phone(phone),
         "area": area,
         "area_label": area_label_for(area),
-        "niche": niche,
+        "niche": slug_niche(niche),
         "run": run,
         "outcome": outcome,
         "outcome_reason": reason,
