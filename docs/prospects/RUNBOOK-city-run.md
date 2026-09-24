@@ -99,23 +99,28 @@ Everything prospect-related lives in **this repo**, under `docs/prospects/`:
 | Path | What | In git? |
 |---|---|---|
 | `bb-prospecting-kit/` | the pipeline (code) | ✅ |
-| `contacted.jsonl` | the cross-city ledger (data) | ✅ |
+| `bb-prospecting-kit/ledgers/<niche>.jsonl` | the ledger — **one per vertical** | ✅ |
 | `<city>-<vertical>-<YYYYMM>/` | one run (data only) | ✅ |
 
 **Before working a new area, check the ledger:**
 
 ```bash
-python docs/prospects/bb-prospecting-kit/contacted_ledger.py check --feed <run>/data/ranked-feed.json --area alpharetta-ga
+python docs/prospects/bb-prospecting-kit/contacted_ledger.py check --feed <run>/data/ranked-feed.json --area alpharetta-ga --niche <vertical>
 ```
 
-It prints SKIP / FLAG / NEW against `docs/prospects/contacted.jsonl` — every business we have ever
-evaluated, including exclusions — matched on **phone first**, then **name+area**. Same name in a
-different area is a **FLAG for a human, never an automatic skip** (two towns can each have an
-"H & M Services", and merging them drops a real prospect). Outcomes never downgrade.
+It prints SKIP / FLAG / NEW against `ledgers/<niche>.jsonl` — every business we have ever evaluated
+in that vertical, including exclusions — matched on **phone first**, then **name+area**.
 
-Override the ledger path with `--ledger` or `PROSPECT_LEDGER`; the same tool is also present in
-`bb-audit-kit/research/tools/` while PR #31 is open — **one home has to win**, or the two copies
-will drift.
+**`--niche` is required** for seed/check/mark. Ledgers are per vertical because a visit is
+vertical-specific: a business excluded from a duct-cleaning run is still a valid septic prospect
+with a different offer, and a shared ledger would silently skip it. A business on file for another
+vertical reports as **INFO, never a skip**.
+
+Same name in a different area is a **FLAG for a human, never an automatic skip** (two towns can each
+have an "H & M Services", and merging them drops a real prospect). Outcomes never downgrade.
+`cap` counts sends across all verticals — a daily limit is about the mailbox, not the vertical.
+
+Override the ledger dir with `--ledger-dir` or `PROSPECT_LEDGER_DIR`.
 
 ## 4. End-of-run checklist
 
@@ -127,8 +132,8 @@ will drift.
 - [ ] `captures/MATRIX.txt` regenerated; every `gaps` entry reviewed
 - [ ] Claim-verification pass re-applied to every draft (§5 of README)
 - [ ] `outreach_drafts.md` + `ab_test_tracker.csv` current, arms pattern-matched
-- [ ] Every business evaluated (including exclusions) seeded into the ledger with its `captured_by`
-- [ ] `contacted_ledger.py check` re-run against the run's own feed — should report no unexpected NEW
+- [ ] Every business evaluated (including exclusions) seeded into `ledgers/<niche>.jsonl` with its `captured_by`
+- [ ] `contacted_ledger.py check --niche <vertical>` re-run against the run's own feed — no unexpected NEW
 - [ ] README updated with the run date, lead count, and any new corrections to earlier runs
 - [ ] Tooling commit SHA recorded in the run README (provenance, in place of a copied `scripts/`)
 - [ ] Screenshots/logs moved to the archive folder, not committed
