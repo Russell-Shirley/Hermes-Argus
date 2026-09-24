@@ -12,7 +12,7 @@ not code — so a fix to a script fixes it for every city instead of one copy.
 ```
 docs/prospects/
 ├── bb-prospecting-kit/     ← this kit (code: the pipeline + this README)
-├── contacted.jsonl         ← the cross-city ledger (data)
+│   └── ledgers/            ← one ledger per vertical (the kit owns its state)
 ├── RUNBOOK-city-run.md     ← the per-run checklist
 └── <city>-<vertical>-<YYYYMM>/   ← one run (data only)
 ```
@@ -56,21 +56,41 @@ Diagnostics and one-offs (kept because the knowledge is load-bearing):
 | `check_posts.py` | Earlier post probe, superseded by `probe_posts_iso.py`; kept for comparison |
 | `oneoff_andylewis.py` | Worked example of the fallback route for a listing that kept gating |
 
-## The ledger — `docs/prospects/contacted.jsonl`
+## The ledgers — one per vertical
 
-One record per business, repo-wide, so a new city skips what we have already
-handled. Check it **before** working a new area:
-
-```bash
-python docs/prospects/bb-prospecting-kit/contacted_ledger.py check --feed "$RUN/data/ranked-feed.json" --area alpharetta-ga
+```
+bb-prospecting-kit/ledgers/
+├── duct-cleaning.jsonl     ← Cumming GA, 2026-09
+└── septic.jsonl            ← next
 ```
 
+**One file per vertical, not one shared file.** A visit is vertical-specific: a
+business excluded from a duct-cleaning run because it answers its reviews is a
+perfectly good *septic* prospect with a different offer, and a shared ledger would
+silently skip it. It also keeps vertical name collisions apart — "One Way Septic"
+exists in several states.
+
+Check the right vertical **before** working a new area:
+
+```bash
+python docs/prospects/bb-prospecting-kit/contacted_ledger.py check \
+    --feed "$RUN/data/ranked-feed.json" --area alpharetta-ga --niche duct-cleaning
+```
+
+- `--niche` is **required** for `seed`, `check` and `mark` — every write and every
+  skip decision belongs to exactly one vertical. `stats` and `cap` take it
+  optionally.
 - Matches on **phone first**, then **name+area**. The same name in a *different*
   area **FLAGS for a human and never auto-skips** — two towns can each have an
   "H & M Services", and merging them drops a real prospect.
+- A business on file for **another** vertical prints as **INFO, never a skip** —
+  still in scope, different offer.
 - Outcomes never downgrade, so a re-seed can't silently reset a real send.
-- Doubles as the per-mailbox send counter: `cap --sender <address>` (~20/day).
-- Lives with the **data**; override with `--ledger` or `PROSPECT_LEDGER`.
+- `stats` summarises every vertical; `stats --niche septic` details one.
+- `cap --sender <address>` counts sends across **all** verticals (a daily limit is
+  about the mailbox, not the vertical), ~20/day.
+- Ledgers live in `<kit>/ledgers/`; override with `--ledger-dir` or
+  `PROSPECT_LEDGER_DIR` to keep them on a shared drive or in another checkout.
 
 ## Two rules that came from getting them wrong
 

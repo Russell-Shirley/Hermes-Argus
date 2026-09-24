@@ -149,20 +149,25 @@ The city prospecting pipeline lives in the repo, in one place, so a run folder h
 | Path | What |
 |------|------|
 | `docs/prospects/bb-prospecting-kit/` | **bb-prospecting-kit** — the pipeline (13 scripts) + `README.md`: rank probe, review qualification, deep pulls, capture matrix, cross-city ledger |
-| `docs/prospects/contacted.jsonl` | The ledger — every business ever evaluated (including exclusions), 29 seeded from Cumming GA |
+| `docs/prospects/bb-prospecting-kit/ledgers/<niche>.jsonl` | **One ledger per vertical.** Every business ever evaluated (exclusions included). `duct-cleaning.jsonl` = 29 from Cumming GA; `septic.jsonl` next |
 | `docs/prospects/RUNBOOK-city-run.md` | Per-run checklist — *on the `docs/cumming-duct-cleaning-prospect-run` branch (PR #27), not yet on master* |
 
 - Runs target `docs/prospects/<city>-<vertical>-<YYYYMM>/` and are driven in place with
   `RUN_DATA=<run>/data`.
-- Consultation **before** a new area: `contacted_ledger.py check --feed <run>/data/ranked-feed.json --area <area>`
-  → SKIP / FLAG / NEW, matched on phone first, then name+area. Same name in a different
-  area flags for a human and never auto-skips.
+- Ledgers are **per vertical** (`--niche` required for seed/check/mark): an exclusion in one
+  vertical must not hide the same business from another — the offers differ.
+- Consultation **before** a new area: `contacted_ledger.py check --feed <run>/data/ranked-feed.json
+  --area <area> --niche <vertical>` → SKIP / FLAG / NEW, matched on phone first, then name+area.
+  Same name in a different area flags for a human and never auto-skips; a business on file for
+  another vertical reports as INFO.
 - Verticals worked so far: duct cleaning (Cumming GA, 8 leads). **Next: septic** —
   same pipeline plus the tracker field-completion + ladder-rung flow in the
   `septic-lead-research` skill (FMCSA census for owner emails, GA SOS, category health).
-- **Open question:** the same ledger currently also exists at
-  `bb-audit-kit/research/prospects/contacted.jsonl` (PR #31, unmerged). Two copies will
-  drift — one home needs to be chosen deliberately.
+- **Open question:** the older single-file ledger still exists at
+  `bb-audit-kit/research/prospects/contacted.jsonl` (PR #31, unmerged), superseded by the
+  per-vertical ledgers here. Its uncommitted contact-enrichment (place_ids, emails, Apollo
+  notes) was **ported into** `ledgers/duct-cleaning.jsonl`, so nothing is stranded there —
+  but the file itself should be retired so the two cannot drift.
 
 ## Runbooks
 - **[Gateway recovery](docs/runbooks/gateway-recovery.md)** — sev-1. Slack silence / gateway crash.

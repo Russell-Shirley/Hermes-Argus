@@ -1,11 +1,19 @@
 #!/usr/bin/env python3
 """contacted_ledger — cross-city dedupe + send tracking for prospect runs.
 
-Ledger is append/upsert JSONL, one record per business:
-    research/prospects/contacted.jsonl
+**One ledger per vertical**, append/upsert JSONL, one record per business:
 
-Why one file: git keeps the history, it diffs line-by-line, and any run (or any
-agent) can read it without a database.
+    <kit>/ledgers/duct-cleaning.jsonl
+    <kit>/ledgers/septic.jsonl
+
+Separate files because a visit is vertical-specific. A business excluded from a
+duct-cleaning run (it answers its reviews) is a perfectly good *septic* prospect
+with a different offer — sharing one ledger would silently skip it. It also keeps
+vertical name collisions apart, which matters more than it sounds: "One Way
+Septic" exists in several states, and generic local names repeat constantly.
+
+Why plain files: git keeps the history, they diff line-by-line, and any run (or
+any agent) can read them without a database.
 
 Match keys (in priority order):
     1. phone_digits  — a business's phone is the reliable join. Same phone = same
@@ -17,13 +25,18 @@ Match keys (in priority order):
 
 Usage
     python contacted_ledger.py seed  --from-candidates <qualify_candidates.csv> \\
-        --run hermes/2026-09-22-duct-cleaning-cumming-ga --area cumming-ga --niche duct-cleaning
-    python contacted_ledger.py check --feed <ranked-feed.json> --area alpharetta-ga
-    python contacted_ledger.py mark  --name "Air of America" --phone 7708003152 \\
+        --run 2026-09-22-duct-cleaning-cumming-ga --area cumming-ga --niche duct-cleaning
+    python contacted_ledger.py check --feed <ranked-feed.json> --area alpharetta-ga --niche duct-cleaning
+    python contacted_ledger.py mark  --name "Air of America" --phone 7708003152 --niche duct-cleaning \\
         --status contacted --sender acct-1 --date 2026-09-23
-    python contacted_ledger.py stats
-    python contacted_ledger.py cap    --sender acct-1 --date 2026-09-23 --limit 20
+    python contacted_ledger.py stats                 # every vertical
+    python contacted_ledger.py stats --niche septic  # one vertical
+    python contacted_ledger.py cap   --sender acct-1 --date 2026-09-23 --limit 20
     python contacted_ledger.py --selftest
+
+--niche is required for seed/check/mark: every write and every skip decision
+belongs to exactly one vertical. `check` also reports businesses on file for
+OTHER verticals as INFO — never as a skip.
 """
 from __future__ import annotations
 
@@ -35,32 +48,37 @@ import re
 import sys
 from datetime import date
 
-TOOLS_DIR = os.path.dirname(os.path.abspath(__file__))
+KIT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def default_ledger() -> str:
-    """Where ``contacted.jsonl`` lives.
+def default_ledger_dir() -> str:
+    """Directory holding one ledger per vertical (``<dir>/<niche>.jsonl``).
 
-    The ledger sits with the prospect DATA, not with this tool, so the default is
-    derived from the tool's location instead of being hard-coded — that is what
-    lets the toolkit live in one place and serve every run:
-
-      * ``<prospects>/tools/contacted_ledger.py`` -> ``<prospects>/contacted.jsonl``
-      * ``<research>/tools/contacted_ledger.py``  -> ``<research>/prospects/contacted.jsonl``
-
-    Override with ``--ledger`` or ``PROSPECT_LEDGER`` to share one ledger across
-    workspaces, or to point at a ledger kept elsewhere.
+    Derived from the tool's own location so the kit owns its state and travels
+    whole — the kit directory is self-contained. Override with ``--ledger-dir``
+    or ``PROSPECT_LEDGER_DIR`` to keep ledgers somewhere else (a shared drive, a
+    different checkout).
     """
-    env = os.environ.get("PROSPECT_LEDGER")
-    if env:
-        return env
-    parent = os.path.dirname(TOOLS_DIR)
-    if os.path.isdir(os.path.join(parent, "prospects")):
-        return os.path.join(parent, "prospects", "contacted.jsonl")
-    return os.path.join(parent, "contacted.jsonl")
+    return os.environ.get("PROSPECT_LEDGER_DIR") or os.path.join(KIT_DIR, "ledgers")
 
 
-LEDGER = default_ledger()
+LEDGER_DIR = default_ledger_dir()
+
+
+def slug_niche(niche: str) -> str:
+    """'Duct Cleaning' / 'duct_cleaning' -> 'duct-cleaning' (the file stem)."""
+    return re.sub(r"[^a-z0-9]+", "-", (niche or "").strip().lower()).strip("-") or "unknown"
+
+
+def ledger_path(niche: str) -> str:
+    return os.path.join(LEDGER_DIR, slug_niche(niche) + ".jsonl")
+
+
+def ledger_niches() -> list[str]:
+    """Vertical slugs that have a ledger on disk, sorted."""
+    if not os.path.isdir(LEDGER_DIR):
+        return []
+    return sorted(f[:-len(".jsonl")] for f in os.listdir(LEDGER_DIR) if f.endswith(".jsonl"))
 
 # outcomes that mean "already handled — do not re-prospect this business"
 SKIP_OUTCOMES = {"contacted", "replied", "won", "lost", "disqualified", "excluded", "drafted"}
@@ -108,11 +126,11 @@ def captured_by(name: str, area: str, label: str = "") -> str:
     return f"{area_label_for(area, label)} - {name}".strip()
 
 
-def load() -> list[dict]:
-    if not os.path.exists(LEDGER):
+def _read(path: str) -> list[dict]:
+    if not os.path.exists(path):
         return []
     out = []
-    with open(LEDGER, encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line:
@@ -120,13 +138,28 @@ def load() -> list[dict]:
     return out
 
 
-def save(recs: list[dict]) -> None:
-    os.makedirs(os.path.dirname(LEDGER), exist_ok=True)
-    tmp = LEDGER + ".tmp"
+def _write(path: str, recs: list[dict]) -> None:
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         for r in sorted(recs, key=lambda x: x["key"]):
             f.write(json.dumps(r, ensure_ascii=False, sort_keys=False) + "\n")
-    os.replace(tmp, LEDGER)
+    os.replace(tmp, path)
+
+
+def load(niche: str) -> list[dict]:
+    """One vertical's ledger."""
+    return _read(ledger_path(niche))
+
+
+def save(niche: str, recs: list[dict]) -> None:
+    _write(ledger_path(niche), recs)
+
+
+def load_all() -> dict[str, list[dict]]:
+    """Every vertical's ledger, keyed by niche — for cross-vertical INFO and for
+    the send cap, which is mailbox hygiene rather than a per-vertical concern."""
+    return {n: _read(ledger_path(n)) for n in ledger_niches()}
 
 
 def find(recs: list[dict], name: str, phone: str, area: str | None = None):
@@ -223,7 +256,7 @@ def _rank_outcome(o: str) -> int:
 
 
 def cmd_seed(a) -> int:
-    recs = load()
+    recs = load(a.niche)
     added = advanced = 0
     with open(a.from_candidates, encoding="utf-8") as f:
         for row in csv.DictReader(f):
@@ -245,28 +278,38 @@ def cmd_seed(a) -> int:
                     rec["area_label"] = area_label_for(a.area, a.area_label)
                     rec["captured_by"] = captured_by(nm, a.area, a.area_label)
             added += 1 if changed else 0
-    save(recs)
-    print(f"seed: {added} records written from {a.from_candidates} -> {LEDGER} ({len(recs)} total)")
+    save(a.niche, recs)
+    print(f"seed[{slug_niche(a.niche)}]: {added} records written from {a.from_candidates} "
+          f"-> {ledger_path(a.niche)} ({len(recs)} total)")
     return 0
 
 
 def cmd_check(a) -> int:
-    recs = load()
+    recs = load(a.niche)
+    others = {n: r for n, r in load_all().items() if n != slug_niche(a.niche)}
     feed = json.load(open(a.feed, encoding="utf-8"))
     entries = feed.get("maps_full") or feed.get("top_of_list") or []
-    new, seen, flagged = [], [], []
+    new, seen, flagged, other_hits = [], [], [], []
     for e in entries:
         name, phone = e.get("name", ""), e.get("phone", "")
         rec, mtype = find(recs, name, phone, a.area)
         if not rec:
             new.append((e.get("local_rank"), name, phone))
+            # Known from a DIFFERENT vertical: informative, never a skip — the
+            # offers differ, so the business is still a live prospect here.
+            for on, orecs in others.items():
+                orec, omt = find(orecs, name, phone, a.area)
+                if orec and omt != "name-only":
+                    other_hits.append((e.get("local_rank"), name, on, orec.get("outcome")))
+                    break
         elif mtype == "name-only":
             # same name in another area: never auto-skip, whatever its outcome
             flagged.append((e.get("local_rank"), name, phone, rec.get("area"), rec.get("outcome")))
         else:
             seen.append((e.get("local_rank"), name, rec.get("outcome"), rec.get("area"), mtype))
 
-    print(f"check against {LEDGER} ({len(recs)} businesses on file) — area={a.area}")
+    print(f"check against {ledger_path(a.niche)} ({len(recs)} businesses on file) "
+          f"— niche={slug_niche(a.niche)} area={a.area}")
     print(f"\n  SKIP — already processed ({len(seen)}):")
     for r, n, o, ar, mt in seen:
         flag = "" if ar == a.area else f"  [from {ar}]"
@@ -278,6 +321,10 @@ def cmd_check(a) -> int:
     print(f"\n  NEW — safe to process ({len(new)}):")
     for r, n, ph in new:
         print(f"    #{str(r):<3} {n[:40]:<42} {ph or '(no phone listed)'}")
+    if other_hits:
+        print(f"\n  INFO — on file for another vertical ({len(other_hits)}), still in scope here:")
+        for r, n, on, o in other_hits:
+            print(f"    #{str(r):<3} {n[:40]:<42} {on} = {o}")
     out = os.path.join(os.path.dirname(a.feed), "seen-skip.txt")
     with open(out, "w", encoding="utf-8") as f:
         for r, n, o, ar, mt in seen:
@@ -287,7 +334,7 @@ def cmd_check(a) -> int:
 
 
 def cmd_mark(a) -> int:
-    recs = load()
+    recs = load(a.niche)
     rec, mtype = find_strict(recs, a.name, a.phone, a.area or None)
     if not rec:
         if not a.create:
@@ -306,30 +353,51 @@ def cmd_mark(a) -> int:
         rec["replied"] = {"date": a.date or date.today().isoformat(), "snippet": a.notes}
     if a.notes:
         rec["notes"] = (rec.get("notes") or "") + ("" if not rec.get("notes") else " | ") + a.notes
-    save(recs)
+    rec["niche"] = slug_niche(a.niche)
+    save(a.niche, recs)
     print(f"mark: {rec['name']} -> {a.status} (matched by {mtype or 'new'})")
     return 0
 
 
-def cmd_stats(a) -> int:
-    recs = load()
+def _tally(recs: list[dict]) -> tuple[dict, dict]:
     by_outcome, by_area = {}, {}
     for r in recs:
         by_outcome[r.get("outcome", "?")] = by_outcome.get(r.get("outcome", "?"), 0) + 1
         by_area[r.get("area", "?")] = by_area.get(r.get("area", "?"), 0) + 1
-    print(f"ledger: {len(recs)} businesses")
-    print("  by outcome:", dict(sorted(by_outcome.items(), key=lambda kv: -kv[1])))
-    print("  by area:   ", by_area)
+    return dict(sorted(by_outcome.items(), key=lambda kv: -kv[1])), by_area
+
+
+def cmd_stats(a) -> int:
+    if getattr(a, "niche", ""):
+        recs = load(a.niche)
+        by_outcome, by_area = _tally(recs)
+        print(f"ledger[{slug_niche(a.niche)}]: {len(recs)} businesses -> {ledger_path(a.niche)}")
+        print("  by outcome:", by_outcome)
+        print("  by area:   ", by_area)
+        return 0
+    ledgers = load_all()
+    if not ledgers:
+        print(f"no ledgers yet in {LEDGER_DIR}")
+        return 0
+    print(f"ledgers in {LEDGER_DIR}:")
+    total = 0
+    for n, recs in ledgers.items():
+        by_outcome, _ = _tally(recs)
+        total += len(recs)
+        print(f"  {n:<16} {len(recs):>4} businesses   {by_outcome}")
+    print(f"  {'TOTAL':<16} {total:>4}")
     return 0
 
 
 def cmd_cap(a) -> int:
-    recs = load()
     day = a.date or date.today().isoformat()
-    n = sum(1 for r in recs if (r.get("contacted") or {}).get("date") == day
+    ledgers = ({slug_niche(a.niche): load(a.niche)} if getattr(a, "niche", "") else load_all())
+    n = sum(1 for recs in ledgers.values() for r in recs
+            if (r.get("contacted") or {}).get("date") == day
             and (r.get("contacted") or {}).get("sender") == a.sender)
+    scope = f"niche={slug_niche(a.niche)}" if getattr(a, "niche", "") else "all verticals"
     state = "OK" if n < a.limit else "CAP REACHED"
-    print(f"sender {a.sender} on {day}: {n}/{a.limit} sends — {state}")
+    print(f"sender {a.sender} on {day}: {n}/{a.limit} sends ({scope}) — {state}")
     return 0 if n < a.limit else 1
 
 
@@ -372,6 +440,34 @@ def cmd_selftest(a) -> int:
     checks.append(("outcome advances excluded -> contacted, no duplicate", ch and adv is ex and len(recs2) == 1))
     back, ch2 = upsert(recs2, "Tester Co", "4045551212", "cumming-ga", "duct-cleaning", "r", "excluded")
     checks.append(("outcome never downgrades", not ch2 and back["outcome"] == "contacted"))
+    # One ledger per vertical: separate files, independent outcomes. This is the
+    # whole point of the split — a duct-cleaning exclusion must NOT hide the same
+    # business from a septic run, because the offers differ.
+    import tempfile
+    global LEDGER_DIR
+    _saved_dir = LEDGER_DIR
+    try:
+        LEDGER_DIR = tempfile.mkdtemp()
+        dl = load("duct-cleaning")
+        upsert(dl, "Tester Co", "4045551212", "cumming-ga", "duct-cleaning", "r", "excluded")
+        save("duct-cleaning", dl)
+        sl = load("septic")
+        upsert(sl, "Tester Co", "4045551212", "cumming-ga", "septic", "r", "qualified")
+        save("septic", sl)
+        checks.append(("per-vertical: one ledger file per niche",
+                       ledger_niches() == ["duct-cleaning", "septic"]))
+        checks.append(("per-vertical: same business keeps independent outcomes",
+                       load("duct-cleaning")[0]["outcome"] == "excluded"
+                       and load("septic")[0]["outcome"] == "qualified"))
+        checks.append(("per-vertical: a duct exclusion does not hide the septic prospect",
+                       find(load("septic"), "Tester Co", "4045551212")[0] is not None))
+    finally:
+        LEDGER_DIR = _saved_dir
+    checks.append(("niche slug: 'Duct Cleaning' -> 'duct-cleaning'",
+                   slug_niche("Duct Cleaning") == "duct-cleaning"))
+    checks.append(("niche slug: blank -> 'unknown' (never an unnamed file)",
+                   slug_niche("") == "unknown"))
+
     ok = True
     for label, passed in checks:
         print(f"  [{'PASS' if passed else 'FAIL'}] {label}")
@@ -392,24 +488,28 @@ def main() -> int:
     s.add_argument("--relabel", action="store_true", help="re-apply area_label/captured_by to existing records")
 
     c = sub.add_parser("check"); c.add_argument("--feed", required=True)
-    c.add_argument("--area", required=True); c.set_defaults(fn=cmd_check)
+    c.add_argument("--area", required=True); c.add_argument("--niche", required=True)
+    c.set_defaults(fn=cmd_check)
 
     m = sub.add_parser("mark"); m.add_argument("--name", required=True); m.add_argument("--phone", default="")
     m.add_argument("--status", required=True, choices=["qualified", "drafted", "contacted", "replied", "won", "lost", "disqualified", "excluded"])
     m.add_argument("--sender", default=""); m.add_argument("--channel", default="email")
     m.add_argument("--arm", default=""); m.add_argument("--date", default=""); m.add_argument("--notes", default="")
-    m.add_argument("--area", default=""); m.add_argument("--niche", default="")
+    m.add_argument("--area", default=""); m.add_argument("--niche", required=True)
     m.add_argument("--create", action="store_true"); m.set_defaults(fn=cmd_mark)
     m.add_argument("--force", action="store_true", help="allow an intentional status downgrade")
 
-    st = sub.add_parser("stats"); st.set_defaults(fn=cmd_stats)
+    st = sub.add_parser("stats")
+    st.add_argument("--niche", default="", help="one vertical in detail (default: all of them)")
+    st.set_defaults(fn=cmd_stats)
     cap = sub.add_parser("cap"); cap.add_argument("--sender", required=True)
     cap.add_argument("--date", default=""); cap.add_argument("--limit", type=int, default=20)
+    cap.add_argument("--niche", default="", help="narrow the count to one vertical")
     cap.set_defaults(fn=cmd_cap)
 
     for sp in (s, c, m, st, cap):
-        sp.add_argument("--ledger", default="",
-                        help="path to contacted.jsonl (default: alongside the prospect data)")
+        sp.add_argument("--ledger-dir", default="",
+                        help="directory of <niche>.jsonl ledgers (default: <kit>/ledgers)")
 
     a = p.parse_args()
     if a.selftest:
@@ -417,9 +517,9 @@ def main() -> int:
     if not getattr(a, "fn", None):
         p.print_help()
         return 1
-    if getattr(a, "ledger", ""):
-        global LEDGER
-        LEDGER = a.ledger
+    if getattr(a, "ledger_dir", ""):
+        global LEDGER_DIR
+        LEDGER_DIR = a.ledger_dir
     return a.fn(a)
 
 
