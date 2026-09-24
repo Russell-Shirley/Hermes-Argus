@@ -79,7 +79,7 @@ Drive them in place with `RUN_DATA` (they default to `<tool>/../data`, so they a
 do copy them into a run):
 
 ```bash
-RUN="C:/Users/Russell/Documents/GitHub/bb-audit-kit/research/hermes/<date>-<niche>-<area>"
+RUN="$HOME/Documents/GitHub/bb-audit-kit/research/hermes/<date>-<niche>-<area>"
 RUN_DATA="$RUN/data" python docs/prospects/bb-prospecting-kit/local_rank_probe_v4.py "<query>"
 ```
 
