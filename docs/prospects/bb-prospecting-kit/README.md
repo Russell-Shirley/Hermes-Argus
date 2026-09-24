@@ -1,14 +1,17 @@
-# The prospect-research toolkit (canonical)
+# bb-prospecting-kit
 
 The pipeline that turns a Google Maps search for one city + one vertical into a
 ranked, qualified, evidence-backed lead list with outreach copy.
+
+**Canonical home: `Hermes-Argus/docs/prospects/bb-prospecting-kit/`** — the sibling of
+`bb-audit-kit` (that one audits existing clients; this one finds new ones).
 
 It lives **here, in one place, and serves every run.** A run folder holds data,
 not code — so a fix to a script fixes it for every city instead of one copy.
 
 ```
 docs/prospects/
-├── tools/                  ← this toolkit (code)
+├── bb-prospecting-kit/     ← this kit (code: the pipeline + this README)
 ├── contacted.jsonl         ← the cross-city ledger (data)
 ├── RUNBOOK-city-run.md     ← the per-run checklist
 └── <city>-<vertical>-<YYYYMM>/   ← one run (data only)
@@ -28,7 +31,7 @@ set `RUN_DATA`:
 
 ```bash
 RUN="docs/prospects/2026-10-septic-cumming-ga"
-RUN_DATA="$RUN/data" python docs/prospects/tools/qualify_reviews_v2.py 9 30 --min-reviews=20
+RUN_DATA="$RUN/data" python docs/prospects/bb-prospecting-kit/qualify_reviews_v2.py 9 30 --min-reviews=20
 ```
 
 ## The pipeline, in order
@@ -59,7 +62,7 @@ One record per business, repo-wide, so a new city skips what we have already
 handled. Check it **before** working a new area:
 
 ```bash
-python docs/prospects/tools/contacted_ledger.py check --feed "$RUN/data/ranked-feed.json" --area alpharetta-ga
+python docs/prospects/bb-prospecting-kit/contacted_ledger.py check --feed "$RUN/data/ranked-feed.json" --area alpharetta-ga
 ```
 
 - Matches on **phone first**, then **name+area**. The same name in a *different*

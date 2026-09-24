@@ -148,7 +148,7 @@ The city prospecting pipeline lives in the repo, in one place, so a run folder h
 
 | Path | What |
 |------|------|
-| `docs/prospects/tools/` | The pipeline (13 scripts) + `README.md`: rank probe, review qualification, deep pulls, capture matrix, cross-city ledger |
+| `docs/prospects/bb-prospecting-kit/` | **bb-prospecting-kit** — the pipeline (13 scripts) + `README.md`: rank probe, review qualification, deep pulls, capture matrix, cross-city ledger |
 | `docs/prospects/contacted.jsonl` | The ledger — every business ever evaluated (including exclusions), 29 seeded from Cumming GA |
 | `docs/prospects/RUNBOOK-city-run.md` | Per-run checklist — *on the `docs/cumming-duct-cleaning-prospect-run` branch (PR #27), not yet on master* |
 
