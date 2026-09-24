@@ -14,8 +14,7 @@ This is the answer to "when we finish a city search, what do we save?" — the c
 <city>-<vertical>-<YYYYMM>/
 ├── README.md                    ← the run write-up (findings, gates, patterns, how to re-run)
 ├── HANDOFF-gaps.md              ← only if capture coverage changed (what we couldn't pull + options)
-├── scripts/                     ← the pipeline, copied per run (see §3)
-├── results/
+├── data/                        ← every output (the pipeline itself lives in ../tools/)
 │   ├── ranked-feed.json          ← THE ranked list (source of truth for ranks)
 │   ├── ranked-feed.csv           ← same, human-readable
 │   ├── qualify_results.jsonl     ← raw per-business scrape records (resumable state)
@@ -42,18 +41,18 @@ This is the answer to "when we finish a city search, what do we save?" — the c
 | `README.md` | human + agent | what the run found, the gates, the honest caveats | ✅ |
 | `HANDOFF-gaps.md` | agent | capture gaps + options for another model | ✅ |
 | `scripts/*.py` | copied per run | the pipeline (see §3) | ✅ |
-| `results/ranked-feed.json/.csv` | `local_rank_probe_v4.py` | ranked positions, names, ratings, review counts, phones, ad flags | ✅ |
-| `results/qualify_results.jsonl` | `qualify_reviews_v2.py` | raw scrape state, resumable — **retries append here**, that's the `_vN` files in old runs | ✅ |
-| `results/qualify_merged.jsonl` | `merge_results.py` | one record per business, best record wins | ✅ |
-| `results/qualify_candidates.csv` | `analyze_qualify.py` | all evaluated businesses: gates, tiers, verdicts, claim status. **First column is `captured_by`** (`Cumming-GA - <business>`), so any row traces back to the search that found it | ✅ |
-| `results/qualify_leads.csv` | `analyze_qualify.py` | the qualified leads only, same `captured_by` first column | ✅ |
-| `results/qualify_report.md` | `analyze_qualify.py` | rendered report (same data, prose) | ✅ |
-| `results/deep_reviews.json` | `deep_reviews.py` | full-population review pulls — the ground truth for validating the capture | ✅ |
-| `results/deep_scored.csv` | `score_deep.py` | pattern scores on recent coverage + reply substance | ✅ |
-| `results/posts_verified.json` | `probe_posts_iso.py` / `check_posts.py` | GBP post dates (authoritative; pane scan gives false negatives) | ✅ |
-| `results/ab_test_tracker.csv` | assignment step | A/B arm + verified-claim status + reply outcome columns | ✅ |
-| `results/captures/<slug>.json` | `capture_business.py` | the 14-row diagnostic, with per-field `gaps` | ✅ |
-| `results/captures/MATRIX.txt` | `summarize_captures.py` | human-readable matrix | ✅ |
+| `data/ranked-feed.json/.csv` | `local_rank_probe_v4.py` | ranked positions, names, ratings, review counts, phones, ad flags | ✅ |
+| `data/qualify_results.jsonl` | `qualify_reviews_v2.py` | raw scrape state, resumable — **retries append here**, that's the `_vN` files in old runs | ✅ |
+| `data/qualify_merged.jsonl` | `merge_results.py` | one record per business, best record wins | ✅ |
+| `data/qualify_candidates.csv` | `analyze_qualify.py` | all evaluated businesses: gates, tiers, verdicts, claim status. **First column is `captured_by`** (`Cumming-GA - <business>`), so any row traces back to the search that found it | ✅ |
+| `data/qualify_leads.csv` | `analyze_qualify.py` | the qualified leads only, same `captured_by` first column | ✅ |
+| `data/qualify_report.md` | `analyze_qualify.py` | rendered report (same data, prose) | ✅ |
+| `data/deep_reviews.json` | `deep_reviews.py` | full-population review pulls — the ground truth for validating the capture | ✅ |
+| `data/deep_scored.csv` | `score_deep.py` | pattern scores on recent coverage + reply substance | ✅ |
+| `data/posts_verified.json` | `probe_posts_iso.py` / `check_posts.py` | GBP post dates (authoritative; pane scan gives false negatives) | ✅ |
+| `data/ab_test_tracker.csv` | assignment step | A/B arm + verified-claim status + reply outcome columns | ✅ |
+| `data/captures/<slug>.json` | `capture_business.py` | the 14-row diagnostic, with per-field `gaps` | ✅ |
+| `data/captures/MATRIX.txt` | `summarize_captures.py` | human-readable matrix | ✅ |
 | `outreach/*.md` | agent | the actual email copy | ✅ |
 | `*.png` (screenshots) | every script | evidence for claims (SERP, review panes, posts surfaces) | ❌ archive |
 | `*.log` | every script | run logs | ❌ archive |
@@ -62,7 +61,21 @@ This is the answer to "when we finish a city search, what do we save?" — the c
 **Why screenshots are excluded:** ~40 MB per city against a 664 KB packed repo. They live in the
 archive folder; the README names the load-bearing ones.
 
-## 3. Scripts copied per run (and run order)
+## 3. The pipeline (canonical toolkit, not copied per run)
+
+The scripts live in **`Hermes-Argus/docs/prospects/tools/`** — one copy, serving every city and
+vertical, so a fix lands everywhere at once. A run folder holds **data only**. Read
+`tools/README.md` before running anything.
+
+Drive them in place with `RUN_DATA` (they default to `<tool>/../data`, so they also work if you
+do copy them into a run):
+
+```bash
+RUN="docs/prospects/<city>-<vertical>-<YYYYMM>"
+RUN_DATA="$RUN/data" python docs/prospects/tools/local_rank_probe_v4.py "<query>"
+```
+
+Record the toolkit commit SHA in the run README — that is the provenance, instead of a frozen copy.
 
 | # | Script | Writes |
 |---|---|---|
@@ -81,17 +94,28 @@ of the fallback route, not part of the standard order.
 
 ## 3b. Where a run lives, and the ledger
 
-Runs live at `bb-audit-kit/research/hermes/<date>-<niche>-<area>/` (e.g.
-`2026-09-22-duct-cleaning-cumming-ga`). Before working a new area, check the cross-city ledger:
+Everything prospect-related lives in **this repo**, under `docs/prospects/`:
+
+| Path | What | In git? |
+|---|---|---|
+| `tools/` | the pipeline (code) | ✅ |
+| `contacted.jsonl` | the cross-city ledger (data) | ✅ |
+| `<city>-<vertical>-<YYYYMM>/` | one run (data only) | ✅ |
+
+**Before working a new area, check the ledger:**
 
 ```bash
-python bb-audit-kit/research/tools/contacted_ledger.py check --feed <run>/data/ranked-feed.json --area alpharetta-ga
+python docs/prospects/tools/contacted_ledger.py check --feed <run>/data/ranked-feed.json --area alpharetta-ga
 ```
 
-It prints SKIP / FLAG / NEW against `bb-audit-kit/research/prospects/contacted.jsonl` — every
-business we have ever evaluated, including exclusions — matched on **phone first**, then
-**name+area**. Same name in a different area is a FLAG for a human, never an automatic skip.
-See `research/prospects/README.md` for the schema and rules.
+It prints SKIP / FLAG / NEW against `docs/prospects/contacted.jsonl` — every business we have ever
+evaluated, including exclusions — matched on **phone first**, then **name+area**. Same name in a
+different area is a **FLAG for a human, never an automatic skip** (two towns can each have an
+"H & M Services", and merging them drops a real prospect). Outcomes never downgrade.
+
+Override the ledger path with `--ledger` or `PROSPECT_LEDGER`; the same tool is also present in
+`bb-audit-kit/research/tools/` while PR #31 is open — **one home has to win**, or the two copies
+will drift.
 
 ## 4. End-of-run checklist
 
@@ -106,14 +130,15 @@ See `research/prospects/README.md` for the schema and rules.
 - [ ] Every business evaluated (including exclusions) seeded into the ledger with its `captured_by`
 - [ ] `contacted_ledger.py check` re-run against the run's own feed — should report no unexpected NEW
 - [ ] README updated with the run date, lead count, and any new corrections to earlier runs
+- [ ] Tooling commit SHA recorded in the run README (provenance, in place of a copied `scripts/`)
 - [ ] Screenshots/logs moved to the archive folder, not committed
 - [ ] Committed on a `docs/<city>-…` branch and opened as a PR
 
 ## 5. Standing naming rules
 
 1. **Generic filenames inside the run folder** — no city or vertical in file names; the folder
-   carries that. (Exception to clean up: the Cumming run's `ranked_duct_cumming_v4.*` predates this
-   rule and `duct_cleaning_cumming_ranks.csv` is a superseded duplicate.)
+   carries that. (Historical: the Cumming run's `ranked_duct_cumming_v4.*` predates this rule and
+   was renamed to `ranked-feed.*`; `duct_cleaning_cumming_ranks.csv` is a superseded duplicate.)
 2. **One raw state file per stage.** `qualify_results.jsonl` is appended to and resumed; don't
    create `_v2`/`_v3` copies — that pattern came from iterating mid-run and left six files behind.
 3. **`<business-slug>.json`** for per-business captures (lowercase, hyphens, ≤60 chars).
