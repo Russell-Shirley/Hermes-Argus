@@ -54,15 +54,46 @@ KIT_DIR = os.path.dirname(os.path.abspath(__file__))
 def default_ledger_dir() -> str:
     """Directory holding one ledger per vertical (``<dir>/<niche>.jsonl``).
 
-    Derived from the tool's own location so the kit owns its state and travels
-    whole — the kit directory is self-contained. Override with ``--ledger-dir``
-    or ``PROSPECT_LEDGER_DIR`` to keep ledgers somewhere else (a shared drive, a
-    different checkout).
+    Resolved in order:
+
+    1. ``PROSPECT_LEDGER_DIR`` (env);
+    2. ``ledger-location.json`` beside this file — the configured findings repo;
+    3. ``<kit>/ledgers`` — a local fallback for tests/CI, not the real home.
+
+    **Findings never live in this repo.** The kit is tooling inside the agent
+    system; the ledgers and run output are client work product and belong in the
+    findings repo (bb-audit-kit). Writing into the fallback is a smell, which is
+    why ``stats`` always prints the directory it actually used.
     """
-    return os.environ.get("PROSPECT_LEDGER_DIR") or os.path.join(KIT_DIR, "ledgers")
+    env = os.environ.get("PROSPECT_LEDGER_DIR")
+    if env:
+        return env
+    try:
+        with open(os.path.join(KIT_DIR, "ledger-location.json"), encoding="utf-8") as f:
+            rel = (json.load(f) or {}).get("ledger_dir", "")
+        if rel:
+            return rel if os.path.isabs(rel) else os.path.normpath(os.path.join(KIT_DIR, rel))
+    except (OSError, ValueError):
+        pass
+    return os.path.join(KIT_DIR, "ledgers")
 
 
 LEDGER_DIR = default_ledger_dir()
+
+
+def _guard_findings_location(path: str) -> None:
+    """Shout if a write is about to land inside the Hermes repo.
+
+    Findings belong to the findings repo (bb-audit-kit). The fallback ledger dir
+    lives inside this kit, so a misconfigured or missing ledger-location.json
+    would quietly file client work product into the agent system. Loud, not fatal:
+    tests and CI legitimately point at temp dirs.
+    """
+    if os.path.abspath(path).startswith(os.path.abspath(KIT_DIR)):
+        print("WARNING: writing findings INSIDE the Hermes repo:\n"
+              "           %s\n"
+              "         Findings belong in the findings repo. Set ledger-location.json\n"
+              "         or PROSPECT_LEDGER_DIR (see the kit README)." % path, file=sys.stderr)
 
 
 def slug_niche(niche: str) -> str:
@@ -256,6 +287,7 @@ def _rank_outcome(o: str) -> int:
 
 
 def cmd_seed(a) -> int:
+    _guard_findings_location(ledger_path(a.niche))
     recs = load(a.niche)
     added = advanced = 0
     with open(a.from_candidates, encoding="utf-8") as f:
@@ -334,6 +366,7 @@ def cmd_check(a) -> int:
 
 
 def cmd_mark(a) -> int:
+    _guard_findings_location(ledger_path(a.niche))
     recs = load(a.niche)
     rec, mtype = find_strict(recs, a.name, a.phone, a.area or None)
     if not rec:

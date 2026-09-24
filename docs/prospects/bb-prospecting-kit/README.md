@@ -10,12 +10,19 @@ It lives **here, in one place, and serves every run.** A run folder holds data,
 not code — so a fix to a script fixes it for every city instead of one copy.
 
 ```
-docs/prospects/
-├── bb-prospecting-kit/     ← this kit (code: the pipeline + this README)
-│   └── ledgers/            ← one ledger per vertical (the kit owns its state)
-├── RUNBOOK-city-run.md     ← the per-run checklist
-└── <city>-<vertical>-<YYYYMM>/   ← one run (data only)
+Hermes-Argus/docs/prospects/          ← TOOLING (this repo)
+├── bb-prospecting-kit/               ← the pipeline + this README + tests
+│   └── ledger-location.json          ← points at the findings repo
+└── RUNBOOK-city-run.md               ← the per-run checklist
+
+bb-audit-kit/research/                ← FINDINGS (the other repo)
+├── hermes/<date>-<niche>-<area>/     ← one finished city search
+└── prospects/ledgers/<niche>.jsonl   ← one ledger per vertical
 ```
+
+**Findings never live in this repo.** The Hermes repo is the agent system; the ledgers and run
+output are client work product. `ledger-location.json` tells the tool where they are, and the tool
+warns loudly if a write is ever about to land inside the kit.
 
 ## Requirements
 
@@ -56,10 +63,10 @@ Diagnostics and one-offs (kept because the knowledge is load-bearing):
 | `check_posts.py` | Earlier post probe, superseded by `probe_posts_iso.py`; kept for comparison |
 | `oneoff_andylewis.py` | Worked example of the fallback route for a listing that kept gating |
 
-## The ledgers — one per vertical
+## The ledgers — one per vertical, in the findings repo
 
 ```
-bb-prospecting-kit/ledgers/
+bb-audit-kit/research/prospects/ledgers/
 ├── duct-cleaning.jsonl     ← Cumming GA, 2026-09
 └── septic.jsonl            ← next
 ```
@@ -89,8 +96,9 @@ python docs/prospects/bb-prospecting-kit/contacted_ledger.py check \
 - `stats` summarises every vertical; `stats --niche septic` details one.
 - `cap --sender <address>` counts sends across **all** verticals (a daily limit is
   about the mailbox, not the vertical), ~20/day.
-- Ledgers live in `<kit>/ledgers/`; override with `--ledger-dir` or
-  `PROSPECT_LEDGER_DIR` to keep them on a shared drive or in another checkout.
+- Ledgers live in the **findings repo**, resolved via `ledger-location.json`
+  (override: `--ledger-dir`, `PROSPECT_LEDGER_DIR`). `stats` always prints the
+  directory it actually used — check it if a ledger looks empty.
 
 ## Two rules that came from getting them wrong
 

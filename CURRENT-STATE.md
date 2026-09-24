@@ -149,11 +149,11 @@ The city prospecting pipeline lives in the repo, in one place, so a run folder h
 | Path | What |
 |------|------|
 | `docs/prospects/bb-prospecting-kit/` | **bb-prospecting-kit** — the pipeline (13 scripts) + `README.md`: rank probe, review qualification, deep pulls, capture matrix, cross-city ledger |
-| `docs/prospects/bb-prospecting-kit/ledgers/<niche>.jsonl` | **One ledger per vertical.** Every business ever evaluated (exclusions included). `duct-cleaning.jsonl` = 29 from Cumming GA; `septic.jsonl` next |
+| `bb-audit-kit/research/prospects/ledgers/<niche>.jsonl` | **The ledgers — in the FINDINGS repo, not here.** One per vertical; `duct-cleaning.jsonl` = 29 from Cumming GA |
 | `docs/prospects/RUNBOOK-city-run.md` | Per-run checklist — *on the `docs/cumming-duct-cleaning-prospect-run` branch (PR #27), not yet on master* |
 
-- Runs target `docs/prospects/<city>-<vertical>-<YYYYMM>/` and are driven in place with
-  `RUN_DATA=<run>/data`.
+- **Runs (findings) live in bb-audit-kit**: `research/hermes/<date>-<niche>-<area>/`, driven in
+  place with `RUN_DATA=<run>/data`. Nothing produced by a run is committed here.
 - Ledgers are **per vertical** (`--niche` required for seed/check/mark): an exclusion in one
   vertical must not hide the same business from another — the offers differ.
 - Consultation **before** a new area: `contacted_ledger.py check --feed <run>/data/ranked-feed.json
