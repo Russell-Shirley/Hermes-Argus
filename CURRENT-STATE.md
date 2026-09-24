@@ -4,8 +4,8 @@
 > Read at session start. Update on significant changes.
 
 ## Last Updated
-- **Date:** 2026-07-02
-- **By:** Hermes Agent (Open Brain — two new schema areas: meeting_notes + sales_recordings)
+- **Date:** 2026-09-24
+- **By:** Hermes Agent (prospect-research toolkit + cross-city ledger now canonical in-repo)
 
 ## Identity
 - **Agent name:** Argus Panoptes ("Argus")
@@ -140,6 +140,29 @@ Two dedicated tables created in OpenBrain Postgres (argus-openbrain container):
 - **Extend to AI Factory** — align AI Factory skills frontmatter with Hermes-Argus convention
 - **Create client services skills** — populate `skills/clients/` with onboarding and outreach playbooks
 - **Hindsight auto-start** — add to Task Scheduler so it survives reboots (tracked in issue #13)
+
+## Prospect Research (local-SEO lead generation)
+
+The city prospecting pipeline lives in the repo, in one place, so a run folder holds
+**data only** — a fix to a script fixes it for every city instead of one copy.
+
+| Path | What |
+|------|------|
+| `docs/prospects/tools/` | The pipeline (13 scripts) + `README.md`: rank probe, review qualification, deep pulls, capture matrix, cross-city ledger |
+| `docs/prospects/contacted.jsonl` | The ledger — every business ever evaluated (including exclusions), 29 seeded from Cumming GA |
+| `docs/prospects/RUNBOOK-city-run.md` | Per-run checklist — *on the `docs/cumming-duct-cleaning-prospect-run` branch (PR #27), not yet on master* |
+
+- Runs target `docs/prospects/<city>-<vertical>-<YYYYMM>/` and are driven in place with
+  `RUN_DATA=<run>/data`.
+- Consultation **before** a new area: `contacted_ledger.py check --feed <run>/data/ranked-feed.json --area <area>`
+  → SKIP / FLAG / NEW, matched on phone first, then name+area. Same name in a different
+  area flags for a human and never auto-skips.
+- Verticals worked so far: duct cleaning (Cumming GA, 8 leads). **Next: septic** —
+  same pipeline plus the tracker field-completion + ladder-rung flow in the
+  `septic-lead-research` skill (FMCSA census for owner emails, GA SOS, category health).
+- **Open question:** the same ledger currently also exists at
+  `bb-audit-kit/research/prospects/contacted.jsonl` (PR #31, unmerged). Two copies will
+  drift — one home needs to be chosen deliberately.
 
 ## Runbooks
 - **[Gateway recovery](docs/runbooks/gateway-recovery.md)** — sev-1. Slack silence / gateway crash.
