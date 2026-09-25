@@ -48,11 +48,11 @@ RUN_DATA="$RUN/data" python docs/prospects/bb-prospecting-kit/qualify_reviews_v2
 | 1 | `local_rank_probe_v4.py "<query>"` | `data/ranked-feed.json` + `.csv` | The ranked list. Scrolls to "end of the list". **Google prints no rank number** — rank is positional list order (`pin_number_check.py` is the evidence). |
 | 2 | `qualify_reviews_v2.py <lo> <hi> [--min-reviews=N]` | `data/qualify_results.jsonl` | Appends and is resumable. Waits **40s/business** — see pacing below. |
 | 3 | `merge_results.py` | `data/qualify_merged.jsonl` | One record per business, best run wins. |
-| 4 | `analyze_qualify.py [--area-label=<slug>] [--title=<text>]` | `data/qualify_candidates.csv`, `qualify_leads.csv`, `qualify_report.md` | Emits the leads file too. First column is `captured_by`. `--area-label` takes either `canton-ga` or `Canton-GA` (one label convention, shared with the ledger); the report header derives from it, so the report names its own run. |
+| 4 | `analyze_qualify.py [--area-label=<slug>] [--title=<text>]` | `data/qualify_candidates.csv`, `qualify_leads.csv`, `qualify_report.md` | Emits the leads file too. First column is `captured_by`. Rows carry **`city` and `website`** so a lead's location travels with it. `--area-label` takes either `canton-ga` or `Canton-GA` (one label convention, shared with the ledger); the report header derives from it, so the report names its own run. |
 | 5 | `deep_reviews.py "<name>" [...]` | `data/deep_reviews.json` | Full review population — the ground truth for validating the capture. |
 | 6 | `score_deep.py` | `data/deep_scored.csv` | Scores **recent coverage (newest 10)** + reply substance. Lifetime coverage alone misleads. |
 | 7 | `probe_posts_iso.py "<name>"` | merge into `data/posts_verified.json` | Authoritative post evidence. A pane-text scan gives **false negatives** — never trust it alone. |
-| 8 | `capture_business.py "<name>" [--area-label=...]` | `data/captures/<slug>.json` | The 14-row diagnostic, with a per-field `gaps` map. |
+| 8 | `capture_business.py "<name>" [--area-label=...] [--url=<place url>]` | `data/captures/<slug>.json` | The 14-row diagnostic, with a per-field `gaps` map, plus **`city` and `website`**. |
 | 9 | `summarize_captures.py` | `data/captures/MATRIX.txt` | Human-readable matrix. |
 
 Diagnostics and one-offs (kept because the knowledge is load-bearing):
@@ -62,6 +62,8 @@ Diagnostics and one-offs (kept because the knowledge is load-bearing):
 | `pin_number_check.py` | Proves Maps results carry **no rank number** in the DOM — the answer to "does Google show you the ranks?" |
 | `check_posts.py` | Earlier post probe, superseded by `probe_posts_iso.py`; kept for comparison |
 | `oneoff_andylewis.py` | Worked example of the fallback route for a listing that kept gating |
+| `geo_fields.py` | The one address→city parse, imported by `analyze_qualify`, `capture_business` and the ledger |
+| `backfill_geo_fields.py` | Adds `city`/`website` to captures written before those fields existed (idempotent, no network) |
 
 ### Per-run inputs that must not live in the toolkit
 
@@ -69,6 +71,25 @@ Diagnostics and one-offs (kept because the knowledge is load-bearing):
 run was told not to contact, whatever the numbers say. It is read by
 `analyze_qualify.py` and it lives **with the run**, because a call-out made about one
 city is not a rule for the next one. No file means no exclusions.
+
+### Location fields: city and website
+
+Every lead carries **`city`** and **`website`**. The Maps card has an address and a site but no city
+field, so the city is parsed from the address (`geo_fields.city_from_address`) in one place and
+imported by every consumer — a second copy is how one business ends up filed under two towns.
+
+**The city is where the business is REGISTERED, not where it WORKS.** Duct and HVAC firms serve 20
+to 40 mile radii, so an address in a town 40 miles away does not mean the lead is out of area.
+`capture_business.py` records the service area separately, and that is usually sign-in gated. Treat
+city as a **service-area flag to check before a send**, never as a disqualifier on its own.
+
+Why it matters anyway: businesses rank in one town's search while sitting in another. On the Canton
+run only **11 of 46** evaluated businesses were actually in Canton, and only 4 of its 13 leads were.
+A "local" pitch to a business whose own profile shows a different town is the kind of mismatch the
+owner notices in ten seconds.
+
+The parse returns `""` (rendered as `GAP`) rather than guessing when an address is missing or not in
+US `<street>, <city>, <ST> <ZIP>` order.
 
 ## The ledgers — one per vertical, in the findings repo
 
@@ -99,7 +120,8 @@ python docs/prospects/bb-prospecting-kit/contacted_ledger.py check \
   "H & M Services", and merging them drops a real prospect.
 - A business on file for **another** vertical prints as **INFO, never a skip** —
   still in scope, different offer.
-- Outcomes never downgrade, so a re-seed can't silently reset a real send.
+- Outcomes never downgrade, so a re-seed can't silently reset a real send. Re-seeding also **fills
+  in** a record's `city`/`website` when it was empty, and never overwrites them.
 - `stats` summarises every vertical; `stats --niche septic` details one.
 - `cap --sender <address>` counts sends across **all** verticals (a daily limit is
   about the mailbox, not the vertical), ~20/day.

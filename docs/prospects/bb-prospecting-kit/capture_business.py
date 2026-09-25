@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 
 from cloakbrowser import launch
 
+from geo_fields import city_from_address
+
 OUT = os.path.dirname(os.path.abspath(__file__))
 # The run's data dir. Defaults to <run>/data when this toolkit is copied into
 # <run>/scripts/; set RUN_DATA to run it IN PLACE against any run folder.
@@ -311,6 +313,14 @@ def main():
         rec.update(page.evaluate(HEADER_JS))
         # which search captured this business — traceable on every record
         rec["captured_by"] = f"{area_label} - {rec.get('name') or query}".strip(" -")
+        # Where the business actually is, and its site. The card carries an address but no
+        # city field, so the city is parsed from it; a business can rank in one town's
+        # search while sitting in another, which decides service-area fit.
+        rec["city"] = city_from_address(rec.get("address") or "")
+        rec.setdefault("website", "")
+        if not rec["city"]:
+            rec["gaps"]["city"] = ("no city: the listing shows no address, or one not in "
+                                   "'<street>, <city>, <ST> <ZIP>' order")
 
         # posts surface (row 9) — the section renders late, so sample early AND again after
         # the review work; a single early read produced a FALSE NEGATIVE on a business that

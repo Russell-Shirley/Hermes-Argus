@@ -302,6 +302,9 @@ def cmd_seed(a) -> int:
             _, changed = upsert(recs, nm, row.get("phone", ""), a.area, a.niche, a.run,
                                 outcome, reason=verdict, rank=row.get("rank"), rating=row.get("rating"),
                                 reviews=row.get("reviews"),
+                                # where the business actually is, and its site: both come
+                                # from the candidate row so a lead inherits its location
+                                city=row.get("city"), website=row.get("website"),
                                 area_label=area_label_for(a.area, a.area_label),
                                 captured_by=captured_by(nm, a.area, a.area_label))
             if a.relabel:
