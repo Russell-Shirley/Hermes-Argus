@@ -31,6 +31,8 @@ except ImportError as _e:  # pragma: no cover
         "analyze_qualify.py must sit beside contacted_ledger.py — run the kit in place "
         f"against a run's data dir (RUN_DATA=...), don't copy single scripts out: {_e}")
 
+from geo_fields import city_from_address
+
 # Which search captured this business. Rendered on every row so a lead can be traced
 # back to the run that found it, e.g. "Cumming-GA - Bobs Dryer Vent Cleaning".
 AREA_LABEL = _area_label_for(_AREA_ARG)
@@ -104,6 +106,13 @@ def main():
         for k in ("rating", "reviews", "phone"):
             if not r.get(k):
                 r[k] = f.get(k, "")
+        # Where the business actually is, and its site. The Maps card carries both but
+        # neither is a city field, so the city is derived from the address. This is not
+        # cosmetic: a business can rank in one town's search while located in another,
+        # and that decides whether the lead is in the service area at all.
+        if not r.get("website"):
+            r["website"] = f.get("website", "")
+        r["city"] = city_from_address(r.get("address") or f.get("address") or "")
         if r.get("status") in ("GATED", "ERROR"):
             # no measurement is not a zero: a gate and a transport error both read as
             # "we could not see this one", and scoring either as a thin sample hides it
@@ -146,11 +155,12 @@ def main():
 
     with open(os.path.join(DATA, "qualify_candidates.csv"), "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["captured_by", "rank", "name", "rating", "reviews", "newest_review_days", "reviews_last_180d",
+        w.writerow(["captured_by", "rank", "name", "city", "website", "rating", "reviews", "newest_review_days", "reviews_last_180d",
                     "sample_n", "recent_positive_n", "owner_responses", "owner_response_rate",
                     "activity", "owner_tier", "verdict", "phone", "status", "sorted_newest"])
         for r in rows:
-            w.writerow([captured_by(r["name"]), r.get("rank"), r["name"], r.get("rating"), r.get("reviews"),
+            w.writerow([captured_by(r["name"]), r.get("rank"), r["name"], r.get("city"), r.get("website"),
+                        r.get("rating"), r.get("reviews"),
                         r.get("newest_review_days"), r.get("reviews_last_180d"), r.get("sample_size"),
                         r.get("recent_positive_n"), r.get("owner_responses_recent"),
                         r.get("response_rate_recent"), r["activity"], r["tier"], r["verdict"],
@@ -159,19 +169,20 @@ def main():
     leads = [r for r in rows if str(r["verdict"]).startswith(("QUALIFIED", "HOLD"))]
     with open(os.path.join(DATA, "qualify_leads.csv"), "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["captured_by", "rank", "name", "rating", "reviews", "newest_review_days",
+        w.writerow(["captured_by", "rank", "name", "city", "website", "rating", "reviews", "newest_review_days",
                     "recent_positive_n", "owner_responses", "owner_response_rate", "activity",
                     "verdict", "phone"])
         for r in sorted(leads, key=lambda x: (0 if str(x["verdict"]).startswith("QUALIFIED - PRIORITY") else 1,
                                               x.get("rank") or 99)):
-            w.writerow([captured_by(r["name"]), r.get("rank"), r["name"], r.get("rating"), r.get("reviews"),
+            w.writerow([captured_by(r["name"]), r.get("rank"), r["name"], r.get("city"), r.get("website"),
+                        r.get("rating"), r.get("reviews"),
                         r.get("newest_review_days"), r.get("recent_positive_n"), r.get("owner_responses_recent"),
                         r.get("response_rate_recent"), r.get("activity"), r.get("verdict"), r.get("phone")])
     print(f"leads written: {len(leads)}")
 
-    print(f"{'rk':<3}{'business':<42}{'revs':>6}{'newest':>8}{'180d':>5}{'n':>4}{'own':>6}{'rate':>6}  {'tier':<8}{'activity':<9}verdict")
+    print(f"{'rk':<3}{'business':<42}{'city':<14}{'revs':>6}{'newest':>8}{'180d':>5}{'n':>4}{'own':>6}{'rate':>6}  {'tier':<8}{'activity':<9}verdict")
     for r in rows:
-        print(f"{r.get('rank',''):<3}{r['name'][:41]:<42}{str(r.get('reviews') or ''):>6}"
+        print(f"{r.get('rank',''):<3}{r['name'][:41]:<42}{str(r.get('city') or 'GAP')[:13]:<14}{str(r.get('reviews') or ''):>6}"
               f"{str(r.get('newest_review_days') if r.get('newest_review_days') is not None else ''):>8}"
               f"{str(r.get('reviews_last_180d') or ''):>5}{str(r.get('recent_positive_n') or ''):>4}"
               f"{str(r.get('owner_responses_recent') or 0):>6}"
@@ -196,10 +207,11 @@ def main():
         f.write(f"Source list: Google Maps ranked feed (`ranked-feed.json`), {span}.\n")
         f.write(f"Businesses checked: {len(rows)}. Criteria: ignore the top 8, rating >= 4.5, reviews >= 30,\n")
         f.write("recent positive reviews with few/no owner responses.\n\n")
-        f.write("| Rank | Business | Rating (revs) | Newest review | Owner resp. | Tier | Verdict |\n")
-        f.write("|---|---|---|---|---|---|---|\n")
+        f.write("| Rank | Business | City | Website | Rating (revs) | Newest review | Owner resp. | Tier | Verdict |\n")
+        f.write("|---|---|---|---|---|---|---|---|---|\n")
         for r in rows:
-            f.write(f"| {r.get('rank')} | {r['name']} | {r.get('rating')} ({r.get('reviews')}) | "
+            f.write(f"| {r.get('rank')} | {r['name']} | {r.get('city') or 'GAP'} | {r.get('website') or 'GAP'} | "
+                    f"{r.get('rating')} ({r.get('reviews')}) | "
                     f"{r.get('newest_review_days')}d | {r.get('owner_responses_recent')}/{r.get('recent_positive_n')} "
                     f"({r.get('response_rate_recent')}%) | {r['tier']} | {r['verdict']} |\n")
     print("wrote qualify_candidates.csv + qualify_report.md")
