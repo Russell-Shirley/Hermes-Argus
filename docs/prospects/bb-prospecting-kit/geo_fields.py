@@ -30,6 +30,9 @@ def city_from_address(address: str) -> str:
         ""                                               -> ""
     """
     parts = [p.strip() for p in (address or "").split(",") if p.strip()]
+    # Maps sometimes appends the country ("..., Canton, GA 30115, United States")
+    if parts and parts[-1].lower() in ("usa", "us", "united states", "united states of america"):
+        parts.pop()
     if len(parts) < 2:
         return ""
     if not _STATE_TAIL.match(parts[-1].upper()):

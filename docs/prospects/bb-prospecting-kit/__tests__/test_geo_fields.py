@@ -42,6 +42,11 @@ def test_returns_empty_rather_than_guessing_a_street_fragment():
     assert city_from_address(None) == ""
 
 
+def test_ignores_a_trailing_country_segment():
+    assert city_from_address("2317 Toonigh Rd, Canton, GA 30115, United States") == "Canton"
+    assert city_from_address("Canton, GA, USA") == "Canton"
+
+
 def test_a_business_in_another_town_is_reported_as_such():
     """The case this exists for: a lead ranking in one city's search but located elsewhere."""
     assert city_from_address("2475 Northwinds Pkwy Suite 200, Alpharetta, GA 30009") == "Alpharetta"

@@ -15,9 +15,9 @@ import sys
 
 from geo_fields import city_from_address
 
-D = sys.argv[1] if len(sys.argv) > 1 else (
-    r"C:/Users/Russell/Documents/GitHub/bb-audit-kit/research/hermes/"
-    r"2026-09-24-duct-cleaning-canton-ga/data")
+if len(sys.argv) < 2:
+    raise SystemExit("usage: python backfill_geo_fields.py <run data dir>")
+D = sys.argv[1]
 
 touched = skipped = gapped = 0
 cities = {}
@@ -40,7 +40,7 @@ for path in sorted(glob.glob(os.path.join(D, "captures", "*.json"))):
         json.dump(rec, f, indent=2, ensure_ascii=False)
     touched += 1
 
-print(f"{os.path.basename(D.rstrip('/'))}: backfilled {touched}, already current {skipped}, "
+print(f"{os.path.basename(os.path.normpath(D))}: backfilled {touched}, already current {skipped}, "
       f"no city derivable {gapped}")
 if cities:
     print("  cities:", ", ".join(f"{c} x{n}" for c, n in sorted(cities.items())))
